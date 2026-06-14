@@ -1,0 +1,1 @@
+ROOT_PATH = "/root/local/BIYELUNWEN/KAITI/DEMO/T2R_back"

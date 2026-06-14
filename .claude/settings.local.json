@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(chmod +x /home/10359025/10359025/Projects/T2RNew/T2R_back/setup_venv.sh)"
+    ]
+  }
+}

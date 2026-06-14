@@ -1,0 +1,205 @@
+{
+    "id": null,
+    "code": null,
+    "name": "creatinine_clearance_calculation_workflow",
+    "description": "Calculate creatinine clearance (CrCl) using the Cockcroft-Gault equation, with weight selection based on BMI category using actual, ideal, or adjusted body weight.",
+    "department": null,
+    "reference": null,
+    "inputs": [
+        {
+            "input_name": "weight_kg",
+            "input_desc": "Patient's actual body weight in kg",
+            "input_type": "float"
+        },
+        {
+            "input_name": "height_m",
+            "input_desc": "Patient's height in meters",
+            "input_type": "float"
+        },
+        {
+            "input_name": "height_in",
+            "input_desc": "Patient's height in inches",
+            "input_type": "float"
+        },
+        {
+            "input_name": "gender",
+            "input_desc": "Patient's gender: 'male' or 'female'",
+            "input_type": "enum"
+        },
+        {
+            "input_name": "age",
+            "input_desc": "Patient's age in years",
+            "input_type": "int"
+        },
+        {
+            "input_name": "serum_creatinine_mg_dl",
+            "input_desc": "Serum creatinine level in mg/dL",
+            "input_type": "float"
+        }
+    ],
+    "output": {
+        "output_name": "crcl_ml_min",
+        "output_desc": "Creatinine clearance in mL/min",
+        "output_type": "float"
+    },
+    "steps": [
+        {
+            "step_id": "1",
+            "step_name": "bmi_calculation",
+            "step_description": "Calculate the patient's Body Mass Index (BMI) using weight in kg and height in meters.",
+            "step_inputs": [
+                {
+                    "input_name": "weight_kg",
+                    "input_desc": "Patient's actual body weight in kg",
+                    "input_type": "float",
+                    "input_source": "$|inputs|.weight_kg"
+                },
+                {
+                    "input_name": "height_m",
+                    "input_desc": "Patient's height in meters",
+                    "input_type": "float",
+                    "input_source": "$|inputs|.height_m"
+                }
+            ],
+            "step_outputs": [
+                {
+                    "output_name": "bmi",
+                    "output_desc": "Calculated BMI value",
+                    "output_type": "float"
+                }
+            ],
+            "category": "FormulaCalculation",
+            "reason": "This step applies a simple mathematical formula to compute BMI from weight and height, which is a direct numerical calculation without branching.",
+            "detail": "BMI = weight_kg / (height_m * height_m)"
+        },
+        {
+            "step_id": "2",
+            "step_name": "bmi_classification",
+            "step_description": "Classify the patient's BMI into underweight, normal, or overweight/obese categories.",
+            "step_inputs": [
+                {
+                    "input_name": "bmi",
+                    "input_desc": "Calculated BMI value",
+                    "input_type": "float",
+                    "input_source": "$|steps|.1.bmi"
+                }
+            ],
+            "step_outputs": [
+                {
+                    "output_name": "bmi_category",
+                    "output_desc": "BMI category: 'underweight', 'normal', or 'overweight/obese'",
+                    "output_type": "str"
+                }
+            ],
+            "category": "ThresholdMapping",
+            "reason": "This step maps a continuous BMI value to discrete categories based on predefined thresholds, which is a classic threshold mapping scenario.",
+            "detail": "If BMI < 18.5, category = 'underweight'; else if 18.5 <= BMI <= 24.9, category = 'normal'; else (BMI >= 25), category = 'overweight/obese'."
+        },
+        {
+            "step_id": "3",
+            "step_name": "ideal_body_weight_calculation",
+            "step_description": "Calculate the patient's Ideal Body Weight (IBW) using the Devine formula based on gender and height in inches.",
+            "step_inputs": [
+                {
+                    "input_name": "gender",
+                    "input_desc": "Patient's gender: 'male' or 'female'",
+                    "input_type": "str",
+                    "input_source": "$|inputs|.gender"
+                },
+                {
+                    "input_name": "height_in",
+                    "input_desc": "Patient's height in inches",
+                    "input_type": "float",
+                    "input_source": "$|inputs|.height_in"
+                }
+            ],
+            "step_outputs": [
+                {
+                    "output_name": "ibw_kg",
+                    "output_desc": "Ideal body weight in kg",
+                    "output_type": "float"
+                }
+            ],
+            "category": "FormulaCalculation",
+            "reason": "This step computes IBW using a gender-dependent linear formula, which is a straightforward mathematical calculation.",
+            "detail": "If gender is 'male': IBW = 50 + 2.3 * (height_in - 60); if gender is 'female': IBW = 45.5 + 2.3 * (height_in - 60)."
+        },
+        {
+            "step_id": "4",
+            "step_name": "adjusted_body_weight_calculation",
+            "step_description": "Determine the weight to be used in the Cockcroft-Gault equation based on BMI category. Calculate Adjusted Body Weight (ABW) only if needed.",
+            "step_inputs": [
+                {
+                    "input_name": "bmi_category",
+                    "input_desc": "BMI category: 'underweight', 'normal', or 'overweight/obese'",
+                    "input_type": "str",
+                    "input_source": "$|steps|.2.bmi_category"
+                },
+                {
+                    "input_name": "actual_weight_kg",
+                    "input_desc": "Patient's actual body weight in kg",
+                    "input_type": "float",
+                    "input_source": "$|inputs|.weight_kg"
+                },
+                {
+                    "input_name": "ibw_kg",
+                    "input_desc": "Ideal body weight in kg",
+                    "input_type": "float",
+                    "input_source": "$|steps|.3.ibw_kg"
+                }
+            ],
+            "step_outputs": [
+                {
+                    "output_name": "weight_to_use_kg",
+                    "output_desc": "Weight value to be used in CrCl calculation",
+                    "output_type": "float"
+                }
+            ],
+            "category": "ConditionEvaluation",
+            "reason": "This step uses conditional branching based on BMI category to select the appropriate weight, which is a multi-branch condition evaluation with a formula embedded in one branch.",
+            "detail": "If bmi_category == 'underweight': weight_to_use = actual_weight_kg; else if bmi_category == 'normal': weight_to_use = min(ibw_kg, actual_weight_kg); else (overweight/obese): ABW = ibw_kg + 0.4 * (actual_weight_kg - ibw_kg), weight_to_use = ABW."
+        },
+        {
+            "step_id": "5",
+            "step_name": "creatinine_clearance_calculation",
+            "step_description": "Calculate Creatinine Clearance (CrCl) using the Cockcroft-Gault Equation.",
+            "step_inputs": [
+                {
+                    "input_name": "age",
+                    "input_desc": "Patient's age in years",
+                    "input_type": "int",
+                    "input_source": "$|inputs|.age"
+                },
+                {
+                    "input_name": "weight_to_use_kg",
+                    "input_desc": "Weight to use in kg (determined from previous step)",
+                    "input_type": "float",
+                    "input_source": "$|steps|.4.weight_to_use_kg"
+                },
+                {
+                    "input_name": "gender",
+                    "input_desc": "Patient's gender: 'male' or 'female'",
+                    "input_type": "str",
+                    "input_source": "$|inputs|.gender"
+                },
+                {
+                    "input_name": "serum_creatinine_mg_dl",
+                    "input_desc": "Serum creatinine level in mg/dL",
+                    "input_type": "float",
+                    "input_source": "$|inputs|.serum_creatinine_mg_dl"
+                }
+            ],
+            "step_outputs": [
+                {
+                    "output_name": "crcl_ml_min",
+                    "output_desc": "Creatinine clearance in mL/min",
+                    "output_type": "float"
+                }
+            ],
+            "category": "FormulaCalculation",
+            "reason": "This step applies the Cockcroft-Gault formula, which is a precise numerical computation with a gender-based coefficient selection, fitting the FormulaCalculation tool.",
+            "detail": "gender_coefficient = 1 if gender is 'male', else 0.85; CrCl = ((140 - age) * weight_to_use_kg * gender_coefficient) / (72 * serum_creatinine_mg_dl). Round result to 4 decimal places."
+        }
+    ],
+    "executableCode": "def solve(weight_kg, height_m, height_in, gender, age, serum_creatinine_mg_dl):\n    # Step 1: bmi_calculation - Calculate the patient's Body Mass Index (BMI) using weight in kg and height in meters.\n    bmi = weight_kg / (height_m * height_m)\n    yield {\n        \"step_name\": \"bmi_calculation\",\n        \"step_description\": \"Calculate the patient's Body Mass Index (BMI) using weight in kg and height in meters.\",\n        \"step_result\": bmi,\n        \"unit\": \"kg/m^2\"\n    }\n\n    # Step 2: bmi_classification - Classify the patient's BMI into underweight, normal, or overweight/obese categories.\n    if bmi < 18.5:\n        bmi_category = 'underweight'\n    elif 18.5 <= bmi <= 24.9:\n        bmi_category = 'normal'\n    else:\n        bmi_category = 'overweight/obese'\n    yield {\n        \"step_name\": \"bmi_classification\",\n        \"step_description\": \"Classify the patient's BMI into underweight, normal, or overweight/obese categories.\",\n        \"step_result\": bmi_category,\n        \"unit\": None\n    }\n\n    # Step 3: ideal_body_weight_calculation - Calculate the patient's Ideal Body Weight (IBW) using the Devine formula based on gender and height in inches.\n    if gender == 'male':\n        ibw_kg = 50 + 2.3 * (height_in - 60)\n    else:  # female\n        ibw_kg = 45.5 + 2.3 * (height_in - 60)\n    yield {\n        \"step_name\": \"ideal_body_weight_calculation\",\n        \"step_description\": \"Calculate the patient's Ideal Body Weight (IBW) using the Devine formula based on gender and height in inches.\",\n        \"step_result\": ibw_kg,\n        \"unit\": \"kg\"\n    }\n\n    # Step 4: adjusted_body_weight_calculation - Determine the weight to be used in the Cockcroft-Gault equation based on BMI category. Calculate Adjusted Body Weight (ABW) only if needed.\n    if bmi_category == 'underweight':\n        weight_to_use_kg = weight_kg\n    elif bmi_category == 'normal':\n        weight_to_use_kg = min(ibw_kg, weight_kg)\n    else:  # overweight/obese\n        abw_kg = ibw_kg + 0.4 * (weight_kg - ibw_kg)\n        weight_to_use_kg = abw_kg\n    yield {\n        \"step_name\": \"adjusted_body_weight_calculation\",\n        \"step_description\": \"Determine the weight to be used in the Cockcroft-Gault equation based on BMI category. Calculate Adjusted Body Weight (ABW) only if needed.\",\n        \"step_result\": weight_to_use_kg,\n        \"unit\": \"kg\"\n    }\n\n    # Step 5: creatinine_clearance_calculation - Calculate Creatinine Clearance (CrCl) using the Cockcroft-Gault Equation.\n    gender_coefficient = 1 if gender == 'male' else 0.85\n    crcl_ml_min = ((140 - age) * weight_to_use_kg * gender_coefficient) / (72 * serum_creatinine_mg_dl)\n    crcl_ml_min = round(crcl_ml_min, 4)\n    yield {\n        \"step_name\": \"creatinine_clearance_calculation\",\n        \"step_description\": \"Calculate Creatinine Clearance (CrCl) using the Cockcroft-Gault Equation.\",\n        \"step_result\": crcl_ml_min,\n        \"unit\": \"mL/min\"\n    }\n\n    return crcl_ml_min"
+}

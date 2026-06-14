@@ -1,0 +1,341 @@
+[
+  {
+    "id": "tool_001",
+    "MetaInfo": {
+      "Name": "FormulaCalculation",
+      "Description": "Formula calculation category, primarily performing calculations for specific mathematical formulas, involving precise and complex numerical computations.",
+      "Scope": "Applicable to scenarios requiring clear mathematical formulas for precise numerical calculation, e.g., geometry (area, volume), physics (velocity, acceleration), finance (compound interest, discounting). Not suitable for scenarios with conditional branches, lookup tables, or non-numeric outputs."
+    },
+    "FlowInfo": {
+      "Input": {
+        "Description": "Input includes all variables required for the formula. Each variable is a single numeric value (integer or float). No default values; all are required.",
+        "Example": { "radius": 5, "formula": "math.pi * radius ** 2" }
+      },
+      "Output": {
+        "Description": "Output is a single numeric value (integer or float) representing the formula result, rounded to 4 decimal places at most.",
+        "Example": { "result": 78.54 }
+      }
+    },
+    "ExecInfo": {
+      "Language": "python",
+      "Library": ["math"],
+      "Logic": [
+        "Import necessary libraries (e.g., math)",
+        "Receive input parameters (including variable values and formula string)",
+        "Replace variable names in the formula string with actual numeric values",
+        "Evaluate the formula using eval or a safer alternative within a restricted namespace",
+        "Round the result to 4 decimal places and return it"
+      ]
+    },
+    "Examples": [
+      {
+        "ToolName": "Circle Area Calculator",
+        "Parameters": { "radius": 5, "formula": "math.pi * radius ** 2" },
+        "Code": "area = math.pi * radius ** 2",
+        "Output": { "area": 78.5398 }
+      },
+      {
+        "ToolName": "BMI Calculator (Metric)",
+        "Parameters": { "weight_kg": 70, "height_m": 1.75, "formula": "weight_kg / (height_m ** 2)" },
+        "Code": "bmi = weight_kg / (height_m ** 2)",
+        "Output": { "bmi": 22.8571 }
+      }
+    ]
+  },
+  {
+    "id": "tool_002",
+    "MetaInfo": {
+      "Name": "ConditionEvaluation",
+      "Description": "Condition evaluation category, primarily performing condition expressions evaluation and returning predefined results based on matched conditions.",
+      "Scope": "Applicable to scenarios requiring classification or grading based on one or more numerical values, e.g., disease staging, risk stratification, lab result interpretation."
+    },
+    "FlowInfo": {
+      "Input": {
+        "Description": "Input includes one or more numerical parameters and a set of condition rules mapping ranges to output values.",
+        "Example": { "eGFR": 38.2, "conditions": [{ "range": [0, 15], "result": "Stage 5" }, { "range": [15, 30], "result": "Stage 4" }] }
+      },
+      "Output": {
+        "Description": "Output is a discrete classification or label matching the first satisfied condition.",
+        "Example": { "stage": "Stage 3", "description": "Moderate renal decline" }
+      }
+    },
+    "ExecInfo": {
+      "Language": "python",
+      "Library": [],
+      "Logic": [
+        "Receive input parameters as key-value pairs",
+        "Iterate through condition rules in priority order",
+        "Evaluate each condition against the input values",
+        "Return the result of the first matching condition",
+        "If no condition matches, return a default or error"
+      ]
+    },
+    "Examples": [
+      {
+        "ToolName": "Blood Pressure Classification",
+        "Parameters": { "systolic": 148, "diastolic": 92 },
+        "Code": "if systolic >= 140 or diastolic >= 90:\n  return \"Hypertension Stage 2\"",
+        "Output": { "classification": "Hypertension Stage 2" }
+      },
+      {
+        "ToolName": "eGFR CKD Stage",
+        "Parameters": { "eGFR": 38.2 },
+        "Code": "if eGFR >= 90: stage = \"Stage 1\"\nelif eGFR >= 60: stage = \"Stage 2\"",
+        "Output": { "stage": "Stage 3", "description": "Moderate renal decline" }
+      }
+    ]
+  },
+  {
+    "id": "tool_003",
+    "MetaInfo": {
+      "Name": "DiscreteValueMapping",
+      "Description": "Discrete value mapping category, primarily mapping finite input values to predefined output values using lookup tables.",
+      "Scope": "Applicable to scenarios where input values belong to a known finite set and each value maps to a specific output, e.g., lab test result coding, clinical finding normalization."
+    },
+    "FlowInfo": {
+      "Input": {
+        "Description": "Input is a single discrete value from a finite set, along with a mapping table defining output for each possible input.",
+        "Example": { "value": "protein(+)", "mapping": { "negative": 0, "trace": 0.5, "protein(+)": 1 } }
+      },
+      "Output": {
+        "Description": "Output is the mapped value corresponding to the input key.",
+        "Example": { "result": 1 }
+      }
+    },
+    "ExecInfo": {
+      "Language": "python",
+      "Library": [],
+      "Logic": [
+        "Receive a discrete input value and a mapping dictionary",
+        "Look up the input value in the mapping dictionary",
+        "Return the corresponding mapped value",
+        "Raise an error if the input value is not found in the mapping"
+      ]
+    },
+    "Examples": [
+      {
+        "ToolName": "Urine Dipstick Result",
+        "Parameters": { "value": "protein(+)", "mapping": { "negative": 0, "trace": 0.5, "1+": 1, "2+": 2, "3+": 3 } },
+        "Code": "result = mapping[value]",
+        "Output": { "result": 1 }
+      },
+      {
+        "ToolName": "Blood Type Abbreviation",
+        "Parameters": { "value": "A positive", "mapping": { "A positive": "A+", "O negative": "O-" } },
+        "Code": "result = blood_type_map[value]",
+        "Output": { "abbreviation": "A+" }
+      }
+    ]
+  },
+  {
+    "id": "tool_004",
+    "MetaInfo": {
+      "Name": "UnitConversion",
+      "Description": "Unit conversion category, primarily converting numerical values from one unit to another using conversion factors.",
+      "Scope": "Applicable to scenarios requiring unit standardization, e.g., converting between metric and imperial units, lab value unit harmonization."
+    },
+    "FlowInfo": {
+      "Input": {
+        "Description": "Input includes a numerical value, the source unit, and the target unit. Conversion factors are predefined.",
+        "Example": { "value": 178, "fromUnit": "cm", "toUnit": "m" }
+      },
+      "Output": {
+        "Description": "Output is the converted numerical value in the target unit.",
+        "Example": { "value": 1.78, "unit": "m" }
+      }
+    },
+    "ExecInfo": {
+      "Language": "python",
+      "Library": [],
+      "Logic": [
+        "Receive input value, source unit, and target unit",
+        "Look up the conversion factor from source to target unit",
+        "Multiply the input value by the conversion factor",
+        "Return the converted value with appropriate precision"
+      ]
+    },
+    "Examples": [
+      {
+        "ToolName": "cm to inches",
+        "Parameters": { "value": 178, "fromUnit": "cm", "toUnit": "inches" },
+        "Code": "inches = value * 0.393701",
+        "Output": { "value": 70.08, "unit": "inches" }
+      },
+      {
+        "ToolName": "Glucose mg/dL to mmol/L",
+        "Parameters": { "value": 126, "fromUnit": "mg/dL", "toUnit": "mmol/L" },
+        "Code": "mmol = value * 0.0555",
+        "Output": { "value": 6.99, "unit": "mmol/L" }
+      }
+    ]
+  },
+  {
+    "id": "tool_005",
+    "MetaInfo": {
+      "Name": "StatisticalAggregation",
+      "Description": "Statistical aggregation category, primarily performing statistical calculations on a set of numerical data points.",
+      "Scope": "Applicable to scenarios requiring summary statistics from multiple measurements, e.g., mean blood pressure from multiple readings, average lab values over time."
+    },
+    "FlowInfo": {
+      "Input": {
+        "Description": "Input is an array of numerical values and the desired aggregation method (mean, median, max, min, std).",
+        "Example": { "values": [142, 138, 145, 140, 148], "method": "mean" }
+      },
+      "Output": {
+        "Description": "Output is the aggregated statistical value.",
+        "Example": { "mean": 142.6 }
+      }
+    },
+    "ExecInfo": {
+      "Language": "python",
+      "Library": ["statistics", "numpy"],
+      "Logic": [
+        "Receive an array of numerical values and aggregation method",
+        "Validate the input array is non-empty",
+        "Apply the specified statistical method",
+        "Return the computed value rounded to appropriate precision"
+      ]
+    },
+    "Examples": [
+      {
+        "ToolName": "Mean SBP",
+        "Parameters": { "values": [142, 138, 145, 140, 148], "method": "mean" },
+        "Code": "import statistics\nmean_sbp = statistics.mean(values)",
+        "Output": { "mean_sbp": 142.6 }
+      },
+      {
+        "ToolName": "Max Heart Rate",
+        "Parameters": { "values": [72, 76, 78, 74, 80], "method": "max" },
+        "Code": "max_hr = max(values)",
+        "Output": { "max_hr": 80 }
+      }
+    ]
+  },
+  {
+    "id": "tool_006",
+    "MetaInfo": {
+      "Name": "LogicalCombination",
+      "Description": "Logical combination category, primarily performing logical operations (AND, OR, NOT) on boolean values to produce composite clinical flags.",
+      "Scope": "Applicable to scenarios requiring combination of multiple binary conditions, e.g., risk factor assessment, eligibility criteria evaluation."
+    },
+    "FlowInfo": {
+      "Input": {
+        "Description": "Input includes multiple boolean values and a logical expression defining how to combine them.",
+        "Example": { "hypertension": true, "diabetes": true, "smoking": false, "expression": "hypertension AND (diabetes OR smoking)" }
+      },
+      "Output": {
+        "Description": "Output is a single boolean result of the logical combination.",
+        "Example": { "high_risk": true }
+      }
+    },
+    "ExecInfo": {
+      "Language": "python",
+      "Library": [],
+      "Logic": [
+        "Receive boolean input values and logical expression",
+        "Parse the logical expression into operations",
+        "Evaluate each sub-expression in order",
+        "Return the final boolean result"
+      ]
+    },
+    "Examples": [
+      {
+        "ToolName": "High CV Risk Flag",
+        "Parameters": { "hypertension": true, "diabetes": true, "smoking": false },
+        "Code": "high_risk = hypertension and (diabetes or smoking)",
+        "Output": { "high_risk": true }
+      },
+      {
+        "ToolName": "Ventilator Weaning Readiness",
+        "Parameters": { "spo2_stable": true, "spontaneous_breathing": true, "hemodynamic_stable": true },
+        "Code": "ready = spo2_stable and spontaneous_breathing and hemodynamic_stable",
+        "Output": { "ready_to_wean": true }
+      }
+    ]
+  },
+  {
+    "id": "tool_007",
+    "MetaInfo": {
+      "Name": "TimeSeriesProcessing",
+      "Description": "Time series processing category, performing operations on time-stamped data including interval calculation, trend analysis, and temporal aggregation.",
+      "Scope": "Applicable to scenarios involving temporal clinical data, e.g., length of stay calculation, medication duration, lab trend analysis."
+    },
+    "FlowInfo": {
+      "Input": {
+        "Description": "Input includes time-stamped data points or two datetime values for interval calculation.",
+        "Example": { "startDate": "2025-01-15", "endDate": "2025-01-22" }
+      },
+      "Output": {
+        "Description": "Output is the computed temporal result (duration, trend direction, rate of change).",
+        "Example": { "days": 7 }
+      }
+    },
+    "ExecInfo": {
+      "Language": "python",
+      "Library": ["datetime", "pandas"],
+      "Logic": [
+        "Receive time-stamped input data",
+        "Parse datetime values into standard format",
+        "Perform the requested temporal operation",
+        "Return the result in the requested unit"
+      ]
+    },
+    "Examples": [
+      {
+        "ToolName": "Length of Stay (Days)",
+        "Parameters": { "admission": "2025-03-10", "discharge": "2025-03-17" },
+        "Code": "from datetime import datetime\nlos = (discharge - admission).days",
+        "Output": { "length_of_stay_days": 7 }
+      },
+      {
+        "ToolName": "Patient Age",
+        "Parameters": { "birthDate": "1968-06-15", "referenceDate": "2026-05-29" },
+        "Code": "age = reference.year - birth.year - ((reference.month, reference.day) < (birth.month, birth.day))",
+        "Output": { "age_years": 57 }
+      }
+    ]
+  },
+  {
+    "id": "tool_008",
+    "MetaInfo": {
+      "Name": "ThresholdMapping",
+      "Description": "Threshold mapping category, mapping continuous numerical values to discrete categories based on predefined thresholds.",
+      "Scope": "Applicable to scenarios requiring classification of continuous measurements into clinical categories, e.g., BMI categories, blood pressure grades, lab value interpretation tiers."
+    },
+    "FlowInfo": {
+      "Input": {
+        "Description": "Input is a continuous numerical value and a set of threshold boundaries mapping ranges to categories.",
+        "Example": { "value": 28.5, "thresholds": [{ "max": 18.5, "label": "Underweight" }, { "max": 25, "label": "Normal" }, { "max": 30, "label": "Overweight" }] }
+      },
+      "Output": {
+        "Description": "Output is the discrete category label and optionally the threshold range that was matched.",
+        "Example": { "category": "Overweight", "range": [25, 30] }
+      }
+    },
+    "ExecInfo": {
+      "Language": "python",
+      "Library": [],
+      "Logic": [
+        "Receive a numerical value and ordered threshold definitions",
+        "Iterate through thresholds in ascending order",
+        "Find the first threshold range containing the value",
+        "Return the corresponding category label",
+        "If value exceeds all thresholds, return the highest category"
+      ]
+    },
+    "Examples": [
+      {
+        "ToolName": "BMI Category (WHO)",
+        "Parameters": { "bmi": 28.5 },
+        "Code": "if bmi < 18.5: cat = \"Underweight\"\nelif bmi < 25: cat = \"Normal\"",
+        "Output": { "category": "Overweight" }
+      },
+      {
+        "ToolName": "BP Systolic Classification",
+        "Parameters": { "systolic": 148 },
+        "Code": "if systolic < 120: grade = \"Normal\"\nelif systolic < 130: grade = \"Elevated\"",
+        "Output": { "grade": "Hypertension Stage 2" }
+      }
+    ]
+  }
+]

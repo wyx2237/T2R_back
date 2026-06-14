@@ -1,0 +1,67 @@
+[
+  {
+    "id": "metric_001",
+    "code": "REN-001",
+    "name": "eGFR (CKD-EPI)",
+    "description": "Estimate glomerular filtration rate based on serum creatinine, age, and sex using the CKD-EPI 2021 formula.",
+    "department": "Nephrology",
+    "reference": "CKD-EPI 2021 (KDIGO)",
+    "inputs": [
+      { "input_name": "SerumCreatinine", "input_desc": "Serum creatinine level", "input_type": "float" },
+      { "input_name": "Age", "input_desc": "Patient age", "input_type": "int" },
+      { "input_name": "Sex", "input_desc": "Patient biological sex (M/F)", "input_type": "enum" }
+    ],
+    "output": {
+      "output_name": "eGFR",
+      "output_desc": "Estimated glomerular filtration rate",
+      "output_type": "float"
+    },
+    "steps": [
+      {
+        "step_id": "1",
+        "step_name": "convert_creatinine_units",
+        "step_description": "Convert serum creatinine units from μmol/L to mg/dL if needed.",
+        "step_inputs": [
+          { "input_name": "SerumCreatinine", "input_desc": "Serum creatinine level", "input_type": "float", "input_source": "$|inputs|.SerumCreatinine" }
+        ],
+        "step_outputs": [
+          { "output_name": "Scr_mg_dL", "output_desc": "Serum creatinine in mg/dL", "output_type": "float" }
+        ],
+        "category": "unit_conversion",
+        "reason": "The CKD-EPI formula requires serum creatinine in mg/dL; input may be provided in other units.",
+        "detail": "If the input creatinine unit is already mg/dL, this step passes through unchanged. Otherwise, divide by 88.4 to convert from μmol/L."
+      },
+      {
+        "step_id": "2",
+        "step_name": "compute_egfr_ckd_epi",
+        "step_description": "Compute eGFR using the CKD-EPI 2021 formula.",
+        "step_inputs": [
+          { "input_name": "Scr_mg_dL", "input_desc": "Serum creatinine in mg/dL", "input_type": "float", "input_source": "$|steps|.1.Scr_mg_dL" },
+          { "input_name": "Age", "input_desc": "Patient age", "input_type": "int", "input_source": "$|inputs|.Age" },
+          { "input_name": "Sex", "input_desc": "Patient biological sex", "input_type": "enum", "input_source": "$|inputs|.Sex" }
+        ],
+        "step_outputs": [
+          { "output_name": "eGFR", "output_desc": "Estimated GFR value", "output_type": "float" }
+        ],
+        "category": "formula_calculation",
+        "reason": "The CKD-EPI formula is the gold standard for estimating kidney function from serum markers.",
+        "detail": "eGFR = 142 × min(Scr/κ, 1)^α × max(Scr/κ, 1)^(-1.200) × 0.9938^Age × 1.012 [if female]. κ = 0.7 (female) or 0.9 (male); α = -0.241 (female) or -0.302 (male)."
+      },
+      {
+        "step_id": "3",
+        "step_name": "classify_ckd_stage",
+        "step_description": "Classify CKD stage based on the computed eGFR value.",
+        "step_inputs": [
+          { "input_name": "eGFR", "input_desc": "Estimated GFR value", "input_type": "float", "input_source": "$|steps|.2.eGFR" }
+        ],
+        "step_outputs": [
+          { "output_name": "CKD_Stage", "output_desc": "CKD stage classification", "output_type": "string" }
+        ],
+        "category": "condition_evaluation",
+        "reason": "Clinical guidelines require staging to determine treatment and monitoring plans.",
+        "detail": "Stage 1: eGFR ≥ 90; Stage 2: 60-89; Stage 3a: 45-59; Stage 3b: 30-44; Stage 4: 15-29; Stage 5: < 15."
+      }
+    ],
+    "executableCode": "def solve(SerumCreatinine, Age, Sex):\n    Scr_mg_dL = SerumCreatinine\n    yield {\"step_name\": \"convert_creatinine_units\", \"step_result\": Scr_mg_dL, \"unit\": \"mg/dL\"}\n\n    kappa = 0.7 if Sex == \"F\" else 0.9\n    alpha = -0.241 if Sex == \"F\" else -0.302\n    sex_factor = 1.012 if Sex == \"F\" else 1.0\n    ratio = Scr_mg_dL / kappa\n    eGFR = 142 * min(ratio, 1) ** alpha * max(ratio, 1) ** (-1.200) * 0.9938 ** Age * sex_factor\n    yield {\"step_name\": \"compute_egfr_ckd_epi\", \"step_result\": round(eGFR, 1), \"unit\": \"mL/min/1.73m²\"}\n\n    if eGFR >= 90: stage = \"Stage 1\"\n    elif eGFR >= 60: stage = \"Stage 2\"\n    elif eGFR >= 45: stage = \"Stage 3a\"\n    elif eGFR >= 30: stage = \"Stage 3b\"\n    elif eGFR >= 15: stage = \"Stage 4\"\n    else: stage = \"Stage 5\"\n    yield {\"step_name\": \"classify_ckd_stage\", \"step_result\": stage, \"unit\": None}\n\n    return round(eGFR, 1)"
+  }
+]
