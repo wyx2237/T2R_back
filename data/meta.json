@@ -1,5 +1,17 @@
 {
-    "metrics":{
-        "department":[]
-    }
+  "metrics": {
+    "department": [
+      {
+        "name": "General",
+        "code_name": "GEN",
+        "nums": 1
+      },
+      {
+        "name": "Nephrology",
+        "code_name": "NEP",
+        "nums": 1
+      }
+    ],
+    "total_nums": 2
+  }
 }

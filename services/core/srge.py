@@ -4,7 +4,7 @@ sys.path.append("/root/local/BIYELUNWEN/KAITI/DEMO/T2R_back")
 
 from services.core.Agents import *
 from utils.general_tools import get_result_content
-from utils.regex_tools import regex_json, regex_python
+from utils.regex_tools import regex_json, regex_json_doc, regex_python
 
 import os
 import math
@@ -19,27 +19,22 @@ async def question_decomposition(patient_info:str, question:str, calculator:dict
     try_times = 0
     while try_times < MAX_RETRY_TIMES:
         try:
-            if not wo:
-                print("WO False")
-                qd_agent = get_QuestionDecomposer()
-                result = await qd_agent.run(task=all_input)
-            else:
-                print("WO True")
-                qd_agent_wo_atomic = get_QuestionDecomposer_wo_Atomic()  # 使用不包含原子分解的版本
-                result = await qd_agent_wo_atomic.run(task=all_input)
+            qd_agent = get_QuestionDecomposer()
+            result = await qd_agent.run(task=all_input)
+
             print(f"【qd result】: \n{result}")  # 打印qd结果
             answer = get_result_content(result)
             print(f"【qd answer】: \n{answer}")
-            steps = regex_json(answer)
+            steps = regex_json_doc(answer)
             print(f"【qd steps str】: \n{steps}")
             steps = json.loads(steps)  # 将字符串转换为JSON对象
             print(f"【qd steps json】: \n{steps}")
             return steps
         except Exception as e:
-            print("【qd error】: \n{e}")
+            print(f"【qd error】: \n{e}")
             try_times += 1
             print(f"【qd retry】: \n{try_times}")
-    raise Exception("【qd error】: \n{e}，已重试{try_times}次，无法继续计算。")
+    raise Exception(f"【qd error】: \n{e}，已重试{try_times}次，无法继续计算。")
 
 # 流程定义
 async def workflow_modeling(patient_info:str, question:str, calculator:dict, steps:list):
@@ -107,20 +102,29 @@ async def code_generation(workflow:dict):
 
 ## 计算阶段
 # 参数抽取
-# ex_agent = get_Extractor()
 async def extract_parameters(workflow:dict, patient_info:str, question:str=None):
     """
-    根据 workflow.inputs，从patient_info中抽取参数
+    根据 workflow.inputs，从patient_info中抽取参数。
+    最大重试 MAX_RETRY_TIMES 次。
     """
     all_input = f"【参数定义】：\n{workflow.get('inputs', [])}\n\n【病人信息】：\n{question}\n{patient_info}"
-    ex_agent = get_Extractor()
-    result = await ex_agent.run(task=all_input)
-    answer = get_result_content(result)
-    print(f"【ex answer】: \n{answer}")
-    input_params = regex_json(answer)
-    input_params = json.loads(input_params)  # 将字符串转换为JSON对象
-    print(f"【ex input_params】: \n{input_params}")
-    return input_params
+    ex_agent = get_StructuredExtractor()
+
+    try_times = 0
+    while try_times < MAX_RETRY_TIMES:
+        try:
+            result = await ex_agent.run(task=all_input)
+            answer = get_result_content(result)
+            print(f"【ex answer】: \n{answer}")
+            input_params = regex_json(answer)
+            input_params = json.loads(input_params)
+            print(f"【ex input_params】: \n{input_params}")
+            return input_params
+        except Exception as e:
+            try_times += 1
+            print(f"【ex error】: {e}")
+            print(f"【ex retry】: {try_times}/{MAX_RETRY_TIMES}")
+    raise Exception(f"【ex error】: 参数抽取失败，已重试 {MAX_RETRY_TIMES} 次，无法完成抽取。")
 
 # 代码执行
 # 创建代码沙盒执行生成的代码
@@ -171,8 +175,8 @@ def execute_code(code: str, input_params: dict) -> dict:
     }
 
 # TEMP_WORKFLOWS_PATH = "/root/local/BIYELUNWEN/KAITI/SRGE/method/workflows/CHMedcalc"
-TEMP_WORKFLOWS_PATH = "/root/local/BIYELUNWEN/KAITI/SRGE/method/workflows/medcalc"
-async def rule_generate(patient_info:str, question:str, calculator:dict, wo=False):
+# TEMP_WORKFLOWS_PATH = "/root/local/BIYELUNWEN/KAITI/SRGE/method/workflows/medcalc"
+async def rule_generate(patient_info:str="", question:str="", formula:str="", calculator:dict={}, wo=False):
     # file_name = f"{calculator.get('calculator id')}.json"
     # if wo:
     #     file_name = f"{calculator.get('calculator id')}_wo.json"
@@ -183,7 +187,10 @@ async def rule_generate(patient_info:str, question:str, calculator:dict, wo=Fals
     #         workflow = json.loads(f.read())
     #         print("【workflow已存在，直接返回workflow】")  # 已存在直接返回workflow
     #         return workflow
-        
+    calculator = {
+        "question": question,
+        "formula": formula
+    }
     # stage1 步骤拆解
     steps = await question_decomposition(patient_info, question, calculator, wo=wo)
     # stage2 流程定义
@@ -213,7 +220,8 @@ async def srge_main(patient_info:str, question:str, calculator:dict):
 
 async def calculate(workflow, patient_info):
     input_params = await extract_parameters(workflow=workflow, patient_info=patient_info)  # 提取参数
-    cal_result = execute_code(code=workflow.get("code"), input_params=input_params)
+    # cal_result = execute_code(code=workflow.get("code"), input_params=input_params)
+    cal_result = execute_code(code=workflow.get("executableCode"), input_params=input_params)
     print(f"【计算结果 cal_result】：\n{cal_result}")
     final_result = cal_result.get("final_value")
     return input_params, cal_result

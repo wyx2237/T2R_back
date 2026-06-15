@@ -11,6 +11,7 @@ from models.metric import Metric
 from models.compute import MetricListResponse
 
 from services.core import srge, Tools
+from utils import meta
 
 _metrics: list[Metric] = []
 _lock = threading.Lock()
@@ -59,16 +60,19 @@ def get_metric_by_id(metric_id: str) -> Metric | None:
 
 async def create_metric(question: str, formula) -> Metric:
     """
-    新建指标：生成自增 ID，追加到列表，写回文件
-    完善：
-        code 、
-        department 、
-        reference 、
-        以上3个字段暂无自动生成，先直接补充吧
+    新建指标：通过 rule_generate 生成指标结构，metric_info_generate 生成元信息，
+    合并后写入 metrics.json 并更新 meta.json
     """
-    metric = await srge.rule_generate(question, formula) # 先占位
-    info = Tools.metric_info_generate(question, formula)
-    metric.update(info)
+    rule_result = await srge.rule_generate(question, formula)
+    info = await meta.metric_info_generate(question, formula)
+
+    # rule_generate 返回的 "code" 是可执行代码，需重命名避免与 info 的 "code"（指标编号）冲突
+    if "code" in rule_result:
+        rule_result["executableCode"] = rule_result.pop("code")
+
+    # 合并：info 中的 id/code(指标编号)/department/reference 补充到 rule_result
+    rule_result.update(info)
+    metric = Metric(**rule_result)
 
     # 写回文件
     with _lock:

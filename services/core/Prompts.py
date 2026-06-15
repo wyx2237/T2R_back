@@ -19,15 +19,15 @@ QUESTION_DECOMPOSITION_PROMPT = """
 
 
 ### 输出格式
-# 输出1 步骤列表 (JSON格式, 以xml标签对<json></json>封装，禁止使用```json ```的标记来封装)
-<json>
+# 输出1 步骤列表 
+```json
 [ 步骤1, 步骤2, ...] 
-</json>
+```
 
 
 
 ### 输出示例
-<json>
+```json
 [
     {
         "Name": "Name1", # 步骤的名称，根据你拆解的步骤自由生成，例如 BMI Calculattion, Cofficient Selection, ...
@@ -52,14 +52,14 @@ QUESTION_DECOMPOSITION_PROMPT = """
     },
     ...
 ]
-</json>
+```
 
 ### Inputs参数说明
 - 参数的取值尽可能简单，例如一个具体数值（或具体日期）、表示有或无的布尔值、数量有限的简单字符串变量（英文）作为枚举值
 - 例如：对于身高、体重等参数，用具体数值；对于是否患有某种疾病、是否表现某种症状，用`疾病或症状名称:布尔值`的方式等
 
 ### 重要提示
-- 严格按照【输出格式】，仿照【输出示例】输出结果，禁止输出多余内容。以xml标签对<json></json>封装，禁止使用```json ```的标记来封装
+- 严格按照【输出格式】，仿照【输出示例】输出结果，禁止输出多余内容。
 - 避免不必要的步骤拆分（例如对于一个具备语义的简单公式，不应该再拆分为若干无意义的琐碎步骤），
 - Detail 字段必须包含当前步骤的所有的计算细节、计分规则，涵盖定义中的所有情况
 - 输出的结果中，步骤数量不能超过6个 ！！
@@ -84,15 +84,15 @@ QUESTION_DECOMPOSITION_WO_ATOMIC = """
 
 
 ### 输出格式
-# 输出1 步骤列表 (JSON格式, 以xml标签对<json></json>封装，禁止使用```json ```的标记来封装)
-<json>
+# 输出1 步骤列表
+```json
 [ 步骤1, 步骤2, ...] 
-</json>
+```
 
 
 
 ### 输出示例
-<json>
+```json
 [
     {
         "Name": "Name1", # 步骤的名称，根据你拆解的步骤自由生成，例如 BMI Calculattion, Cofficient Selection, ...
@@ -115,14 +115,14 @@ QUESTION_DECOMPOSITION_WO_ATOMIC = """
     },
     ...
 ]
-</json>
+```
 
 ### Inputs参数说明
 - 参数的取值尽可能简单，例如一个具体数值（或具体日期）、表示有或无的布尔值、数量有限的简单字符串变量（英文）作为枚举值
 - 例如：对于身高、体重等参数，用具体数值；对于是否患有某种疾病、是否表现某种症状，用`疾病或症状名称:布尔值`的方式等
 
 ### 重要提示
-- 严格按照【输出格式】，仿照【输出示例】输出结果，禁止输出多余内容。以xml标签对<json></json>封装，禁止使用```json ```的标记来封装
+- 严格按照【输出格式】，仿照【输出示例】输出结果，禁止输出多余内容。
 - 避免不必要的步骤拆分（例如对于一个具备语义的简单公式，不应该再拆分为若干无意义的琐碎步骤），
 - Detail 字段必须包含当前步骤的所有的计算细节、计分规则，涵盖定义中的所有情况
 - 输出的结果中，步骤数量不能超过6个 ！！
@@ -397,4 +397,116 @@ EXTRACT_PARAMETERS_PROMPT = """
 ### 特别提醒
 - 最终输出结果全部为英文，禁止出现中文字符！！
 - 数值类型的参数，禁止用字符串类型表示，直接用数字类型表示（int 或 float）
+"""
+
+# 参数抽取提示词（结构化版，输出遵循 ExtractedParam 模型）
+EXTRACT_PARAMETERS_STRUCTURED_PROMPT = """
+### 任务说明
+你是一个医疗文本信息的参数抽取专家，请你根据我给出的【参数定义】从【病人信息】中抽取所需的所有参数。
+- 我会为你提供【病人信息】和【参数定义】，请严格按照【参数定义】中的参数名称 input_name 和类型 input_type 进行抽取。
+- input_desc 字段如果严格限制了可取的标准值，则你给出的抽取结果必须从中选择，禁止自己创造其他非标准的值
+- 如果某个参数需要具体数字作为值，但在【病人信息】中没有找到，标记为 null，不要编造。
+
+### 输出格式
+以 JSON 数组格式输出，每个元素为一个参数抽取结果对象，以 xml 标签对 `<json></json>` 封装，禁止使用 ```json ``` 的标记来封装。
+
+每个参数对象包含以下字段：
+- **name** (string): 参数名称，对应【参数定义】中的 input_name
+- **rawValue** (string): 从【病人信息】原文中截取的原始文本片段，即病人信息中直接描述该参数的原句或短语
+- **normalizedValue** (string | number): 标准化后的参数值。如果是数值类型（int/float），直接输出数字；如果是枚举/分类类型，输出标准值字符串。如果未找到则输出 null
+- **unit** (string): 参数的单位。如果【参数定义】中指定了单位则使用该单位；如果原文中带有单位则提取原文单位；如果参数无单位（如性别、是否吸烟等分类值），输出空字符串 ""
+- **confidence** (integer): 抽取置信度，取值范围 0~5：
+  - 5: 原文明确提及，且值与参数定义完全匹配
+  - 4: 原文明确提及，可以通过简单推理确定
+  - 3: 原文间接提及，需要一定推理
+  - 2: 原文模糊提及，存在一定不确定性
+  - 1: 原文仅有一丝线索，高度不确定
+  - 0: 未找到，完全无法抽取
+- **position** (object): 参数值在【病人信息】原文中的起止位置，格式为 { "start": int, "end": int }（字符索引，从0开始计数）。如果未找到（rawValue 为空），start 和 end 均设为 -1
+
+### 输出格式模板
+<json>
+[
+    {
+        "name": "参数名1",
+        "rawValue": "原文中描述该参数的原始文本片段",
+        "normalizedValue": "标准化值或数字",
+        "unit": "单位或空字符串",
+        "confidence": 5,
+        "position": { "start": 12, "end": 20 }
+    },
+    {
+        "name": "参数名2",
+        "rawValue": "原文中的原始文本片段",
+        "normalizedValue": 70,
+        "unit": "kg",
+        "confidence": 4,
+        "position": { "start": 25, "end": 35 }
+    }
+]
+</json>
+
+### 输出示例
+假设【病人信息】为："Patient is a 45-year-old male, height 170cm, weight 70kg, with history of type 2 diabetes, non-smoker."
+【参数定义】中包含 age, gender, height, weight, diabetes, smoking 等参数。
+
+<json>
+[
+    {
+        "name": "age",
+        "rawValue": "45-year-old",
+        "normalizedValue": 45,
+        "unit": "years",
+        "confidence": 5,
+        "position": { "start": 14, "end": 26 }
+    },
+    {
+        "name": "gender",
+        "rawValue": "male",
+        "normalizedValue": "male",
+        "unit": "",
+        "confidence": 5,
+        "position": { "start": 27, "end": 31 }
+    },
+    {
+        "name": "height",
+        "rawValue": "height 170cm",
+        "normalizedValue": 170,
+        "unit": "cm",
+        "confidence": 5,
+        "position": { "start": 33, "end": 46 }
+    },
+    {
+        "name": "weight",
+        "rawValue": "weight 70kg",
+        "normalizedValue": 70,
+        "unit": "kg",
+        "confidence": 5,
+        "position": { "start": 48, "end": 59 }
+    },
+    {
+        "name": "diabetes",
+        "rawValue": "history of type 2 diabetes",
+        "normalizedValue": "yes",
+        "unit": "",
+        "confidence": 5,
+        "position": { "start": 61, "end": 88 }
+    },
+    {
+        "name": "smoking",
+        "rawValue": "non-smoker",
+        "normalizedValue": "no",
+        "unit": "",
+        "confidence": 5,
+        "position": { "start": 90, "end": 100 }
+    }
+]
+</json>
+
+### 特别提醒
+- 最终输出结果全部为英文，禁止出现中文字符！！
+- normalizedValue 中数值类型的参数，禁止用字符串类型表示，直接用数字类型表示（int 或 float）
+- position 中的 start 和 end 必须是精确的字符索引，对应 rawValue 在【病人信息】原文中的起止位置
+- 如果【参数定义】中指定的某个参数在【病人信息】中完全找不到，仍需在数组中包含该参数，rawValue 为空字符串 ""，normalizedValue 为 null，confidence 为 0，position 为 { "start": -1, "end": -1 }
+- 不要遗漏【参数定义】中的任何参数，每个参数都必须出现在输出数组中
 """

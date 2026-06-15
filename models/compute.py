@@ -11,7 +11,7 @@ from models.metric import Metric
 # ── 枚举类型 ──
 
 ComputeStepStatus = Literal["success", "error"]
-ResultStatus = Literal["normal", "borderline", "abnormal"]
+ResultStatus = Literal["success", "error", "normal", "borderline", "abnormal"]
 SourceType = Literal["raw", "step"]
 SessionStep = Literal["upload", "select", "result"]
 

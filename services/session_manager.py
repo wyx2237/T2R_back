@@ -10,7 +10,7 @@ from models.metric import Metric
 _sessions: dict[str, ComputeSession] = {}
 
 
-def create_session(raw_text: str, available_metrics: list[Metric]) -> ComputeSession:
+def create_session(raw_text: str, available_metrics: list) -> ComputeSession:
     """上传文件后创建新会话，返回带 sessionId 的会话对象"""
     recommend_metrics = recommend(raw_text, available_metrics, 5)  # 先占位
     session = ComputeSession(

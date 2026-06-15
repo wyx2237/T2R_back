@@ -32,3 +32,11 @@ def regex_general(keyword:str, text:str):
         return match
     else:
         return ""
+
+def regex_json_doc(text):
+    matches = re.findall(r"```json(.*?)```", text, re.DOTALL)
+    if matches:
+        match = matches[0].strip()
+        return match
+    else:
+        return ""

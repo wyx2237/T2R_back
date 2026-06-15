@@ -7,7 +7,7 @@ import sys
 import asyncio
 from autogen_agentchat.agents import AssistantAgent
 from services.core.Models import deepseek_v4_pro_client, qwen3_8b_model_client
-from services.core.Prompts import EXTRACT_PARAMETERS_PROMPT, QUESTION_DECOMPOSITION_PROMPT_ALL, WORKFLOW_MODELING_PROMPT, DEPENDENCY_VERIFICATION_PROMPT, CODE_GENERATION_PROMPT
+from services.core.Prompts import EXTRACT_PARAMETERS_PROMPT, EXTRACT_PARAMETERS_STRUCTURED_PROMPT, QUESTION_DECOMPOSITION_PROMPT_ALL, WORKFLOW_MODELING_PROMPT, DEPENDENCY_VERIFICATION_PROMPT, CODE_GENERATION_PROMPT
 from services.core.Prompts import QUESTION_DECOMPOSITION_WO_ATOMIC
 MODEL_CLIENT = deepseek_v4_pro_client
 # MODEL_CLIENT = qwen3_8b_model_client
@@ -102,6 +102,17 @@ def get_Extractor():
         model_client=MODEL_CLIENT,
         name="Extractor",
         description="一个能够从文本信息中提取计算代码中所有需要参数的智能体",
+        system_message=EPrompt,
+        output_content_type_format="json"
+    )
+
+
+def get_StructuredExtractor():
+    EPrompt = EXTRACT_PARAMETERS_STRUCTURED_PROMPT
+    return AssistantAgent(
+        model_client=MODEL_CLIENT,
+        name="StructuredExtractor",
+        description="一个能够从文本信息中抽取参数并以 ExtractedParam 结构化格式输出的智能体",
         system_message=EPrompt,
         output_content_type_format="json"
     )

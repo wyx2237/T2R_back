@@ -2,14 +2,26 @@
   {
     "id": "metric_001",
     "code": "REN-001",
-    "name": "eGFR (CKD-EPI)",
-    "description": "Estimate glomerular filtration rate based on serum creatinine, age, and sex using the CKD-EPI 2021 formula.",
     "department": "Nephrology",
     "reference": "CKD-EPI 2021 (KDIGO)",
+    "name": "eGFR (CKD-EPI)",
+    "description": "Estimate glomerular filtration rate based on serum creatinine, age, and sex using the CKD-EPI 2021 formula.",
     "inputs": [
-      { "input_name": "SerumCreatinine", "input_desc": "Serum creatinine level", "input_type": "float" },
-      { "input_name": "Age", "input_desc": "Patient age", "input_type": "int" },
-      { "input_name": "Sex", "input_desc": "Patient biological sex (M/F)", "input_type": "enum" }
+      {
+        "input_name": "SerumCreatinine",
+        "input_desc": "Serum creatinine level",
+        "input_type": "float"
+      },
+      {
+        "input_name": "Age",
+        "input_desc": "Patient age",
+        "input_type": "int"
+      },
+      {
+        "input_name": "Sex",
+        "input_desc": "Patient biological sex (M/F)",
+        "input_type": "enum"
+      }
     ],
     "output": {
       "output_name": "eGFR",
@@ -22,10 +34,19 @@
         "step_name": "convert_creatinine_units",
         "step_description": "Convert serum creatinine units from μmol/L to mg/dL if needed.",
         "step_inputs": [
-          { "input_name": "SerumCreatinine", "input_desc": "Serum creatinine level", "input_type": "float", "input_source": "$|inputs|.SerumCreatinine" }
+          {
+            "input_name": "SerumCreatinine",
+            "input_desc": "Serum creatinine level",
+            "input_type": "float",
+            "input_source": "$|inputs|.SerumCreatinine"
+          }
         ],
         "step_outputs": [
-          { "output_name": "Scr_mg_dL", "output_desc": "Serum creatinine in mg/dL", "output_type": "float" }
+          {
+            "output_name": "Scr_mg_dL",
+            "output_desc": "Serum creatinine in mg/dL",
+            "output_type": "float"
+          }
         ],
         "category": "unit_conversion",
         "reason": "The CKD-EPI formula requires serum creatinine in mg/dL; input may be provided in other units.",
@@ -36,12 +57,31 @@
         "step_name": "compute_egfr_ckd_epi",
         "step_description": "Compute eGFR using the CKD-EPI 2021 formula.",
         "step_inputs": [
-          { "input_name": "Scr_mg_dL", "input_desc": "Serum creatinine in mg/dL", "input_type": "float", "input_source": "$|steps|.1.Scr_mg_dL" },
-          { "input_name": "Age", "input_desc": "Patient age", "input_type": "int", "input_source": "$|inputs|.Age" },
-          { "input_name": "Sex", "input_desc": "Patient biological sex", "input_type": "enum", "input_source": "$|inputs|.Sex" }
+          {
+            "input_name": "Scr_mg_dL",
+            "input_desc": "Serum creatinine in mg/dL",
+            "input_type": "float",
+            "input_source": "$|steps|.1.Scr_mg_dL"
+          },
+          {
+            "input_name": "Age",
+            "input_desc": "Patient age",
+            "input_type": "int",
+            "input_source": "$|inputs|.Age"
+          },
+          {
+            "input_name": "Sex",
+            "input_desc": "Patient biological sex",
+            "input_type": "enum",
+            "input_source": "$|inputs|.Sex"
+          }
         ],
         "step_outputs": [
-          { "output_name": "eGFR", "output_desc": "Estimated GFR value", "output_type": "float" }
+          {
+            "output_name": "eGFR",
+            "output_desc": "Estimated GFR value",
+            "output_type": "float"
+          }
         ],
         "category": "formula_calculation",
         "reason": "The CKD-EPI formula is the gold standard for estimating kidney function from serum markers.",
@@ -52,10 +92,19 @@
         "step_name": "classify_ckd_stage",
         "step_description": "Classify CKD stage based on the computed eGFR value.",
         "step_inputs": [
-          { "input_name": "eGFR", "input_desc": "Estimated GFR value", "input_type": "float", "input_source": "$|steps|.2.eGFR" }
+          {
+            "input_name": "eGFR",
+            "input_desc": "Estimated GFR value",
+            "input_type": "float",
+            "input_source": "$|steps|.2.eGFR"
+          }
         ],
         "step_outputs": [
-          { "output_name": "CKD_Stage", "output_desc": "CKD stage classification", "output_type": "string" }
+          {
+            "output_name": "CKD_Stage",
+            "output_desc": "CKD stage classification",
+            "output_type": "string"
+          }
         ],
         "category": "condition_evaluation",
         "reason": "Clinical guidelines require staging to determine treatment and monitoring plans.",
@@ -63,5 +112,62 @@
       }
     ],
     "executableCode": "def solve(SerumCreatinine, Age, Sex):\n    Scr_mg_dL = SerumCreatinine\n    yield {\"step_name\": \"convert_creatinine_units\", \"step_result\": Scr_mg_dL, \"unit\": \"mg/dL\"}\n\n    kappa = 0.7 if Sex == \"F\" else 0.9\n    alpha = -0.241 if Sex == \"F\" else -0.302\n    sex_factor = 1.012 if Sex == \"F\" else 1.0\n    ratio = Scr_mg_dL / kappa\n    eGFR = 142 * min(ratio, 1) ** alpha * max(ratio, 1) ** (-1.200) * 0.9938 ** Age * sex_factor\n    yield {\"step_name\": \"compute_egfr_ckd_epi\", \"step_result\": round(eGFR, 1), \"unit\": \"mL/min/1.73m²\"}\n\n    if eGFR >= 90: stage = \"Stage 1\"\n    elif eGFR >= 60: stage = \"Stage 2\"\n    elif eGFR >= 45: stage = \"Stage 3a\"\n    elif eGFR >= 30: stage = \"Stage 3b\"\n    elif eGFR >= 15: stage = \"Stage 4\"\n    else: stage = \"Stage 5\"\n    yield {\"step_name\": \"classify_ckd_stage\", \"step_result\": stage, \"unit\": None}\n\n    return round(eGFR, 1)"
+  },
+  {
+    "id": "06847e6c0a2e",
+    "code": "GEN-001",
+    "department": "General",
+    "reference": "WHO BMI classification standard; weight (kg) / height (m)^2",
+    "name": "bmi_calculation_workflow",
+    "description": "Calculate Body Mass Index (BMI) using weight in kilograms and height in meters.",
+    "inputs": [
+      {
+        "input_name": "weight_kg",
+        "input_desc": "Body weight in kilograms",
+        "input_type": "float"
+      },
+      {
+        "input_name": "height_m",
+        "input_desc": "Body height in meters",
+        "input_type": "float"
+      }
+    ],
+    "output": {
+      "output_name": "bmi",
+      "output_desc": "Final calculated Body Mass Index value",
+      "output_type": "float"
+    },
+    "steps": [
+      {
+        "step_id": "1",
+        "step_name": "compute_bmi",
+        "step_description": "Calculate BMI using the formula: bmi = weight_kg / (height_m^2), rounded to 4 decimal places.",
+        "step_inputs": [
+          {
+            "input_name": "weight_kg",
+            "input_desc": "Body weight in kilograms",
+            "input_type": "float",
+            "input_source": "$|inputs|.weight_kg"
+          },
+          {
+            "input_name": "height_m",
+            "input_desc": "Body height in meters",
+            "input_type": "float",
+            "input_source": "$|inputs|.height_m"
+          }
+        ],
+        "step_outputs": [
+          {
+            "output_name": "bmi",
+            "output_desc": "Calculated Body Mass Index value",
+            "output_type": "float"
+          }
+        ],
+        "category": "formula_calculation",
+        "reason": "The computation involves applying a precise mathematical formula (weight divided by squared height) to numeric inputs to produce a numeric output, which aligns with the FormulaCalculation tool's scope for exact numerical calculations.",
+        "detail": "Calculate BMI using the formula: bmi = weight_kg / (height_m ** 2). Round the result to 4 decimal places."
+      }
+    ],
+    "executableCode": "import math\n\ndef solve(weight_kg, height_m):\n    # Step 1: Calculate BMI using the formula: bmi = weight_kg / (height_m^2), rounded to 4 decimal places.\n    if height_m <= 0:\n        raise ValueError(\"Height must be a positive number.\")\n    bmi = round(weight_kg / (height_m ** 2), 4)\n    \n    yield {\n        \"step_name\": \"compute_bmi\",\n        \"step_description\": \"Calculate BMI using the formula: bmi = weight_kg / (height_m^2), rounded to 4 decimal places.\",\n        \"step_result\": bmi,\n        \"unit\": None\n    }\n    \n    # Return the final result\n    return bmi"
   }
 ]
