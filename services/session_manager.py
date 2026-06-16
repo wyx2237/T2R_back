@@ -5,14 +5,31 @@ from uuid import uuid4
 
 from models.compute import ComputeSession, MetricComputeResult
 from models.metric import Metric
+from services.core import recommand
+from services import metric_store
 
 
 _sessions: dict[str, ComputeSession] = {}
 
 
-def create_session(raw_text: str, available_metrics: list) -> ComputeSession:
+async def create_session(raw_text: str, all_metrics: list[Metric]) -> ComputeSession:
     """上传文件后创建新会话，返回带 sessionId 的会话对象"""
-    recommend_metrics = recommend(raw_text, available_metrics, 5)  # 先占位
+    # 只保留 metric 元信息字段
+    available_metrics = [
+        {
+            "name": metric.name,
+            "description": metric.description,
+            "department": metric.department,
+            "inputs": metric.inputs,
+        }
+        for metric in all_metrics
+    ]
+    recommand_metrics = await recommand.recommand(raw_text, available_metrics, 5)  # 先占位
+    standard_metrics = [
+        m
+        for metric in recommand_metrics
+        if (m := metric_store.get_metric_by_id(metric.get("indicatorId"))) is not None
+    ]
     session = ComputeSession(
         sessionId=uuid4().hex,
         rawText=raw_text,
@@ -20,7 +37,11 @@ def create_session(raw_text: str, available_metrics: list) -> ComputeSession:
         createdAt=datetime.now(timezone.utc).isoformat(),
     )
     _sessions[session.sessionId] = session
-    return session
+    return {
+        "session": session.model_dump(),
+        "recommand_metrics": recommand_metrics,
+        "standard_metrics": standard_metrics
+    }
 
 
 def get_session(session_id: str) -> ComputeSession | None:

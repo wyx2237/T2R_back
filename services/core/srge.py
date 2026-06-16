@@ -116,8 +116,9 @@ async def extract_parameters(workflow:dict, patient_info:str, question:str=None)
             result = await ex_agent.run(task=all_input)
             answer = get_result_content(result)
             print(f"【ex answer】: \n{answer}")
-            input_params = regex_json(answer)
-            input_params = json.loads(input_params)
+            result = regex_json(answer)
+            print(f"【ex regex answer】: \n{result}")
+            input_params = json.loads(result)
             print(f"【ex input_params】: \n{input_params}")
             return input_params
         except Exception as e:

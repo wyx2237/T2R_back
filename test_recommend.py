@@ -22,7 +22,7 @@ The patient is a current smoker (20 pack-years).
 
 available_metrics = [
     {
-        "id": "BMI",
+        "id": "a3f5c2e1b8d9",
         "code": "BMI",
         "department": "General",
         "reference": "WHO BMI classification",
@@ -37,7 +37,7 @@ available_metrics = [
         "executableCode": "",
     },
     {
-        "id": "BSA",
+        "id": "f47ac10b58c6",
         "code": "BSA",
         "department": "General",
         "reference": "Mosteller formula",
@@ -52,7 +52,7 @@ available_metrics = [
         "executableCode": "",
     },
     {
-        "id": "eGFR",
+        "id": "9e2a3b4c5d6e",
         "code": "eGFR",
         "department": "Nephrology",
         "reference": "CKD-EPI formula",
@@ -68,7 +68,7 @@ available_metrics = [
         "executableCode": "",
     },
     {
-        "id": "MAP",
+        "id": "1a2b3c4d5e6f",
         "code": "MAP",
         "department": "Cardiology",
         "reference": "Mean Arterial Pressure formula",
@@ -83,7 +83,7 @@ available_metrics = [
         "executableCode": "",
     },
     {
-        "id": "ASCVD",
+        "id": "7b8c9d0e1f2a",
         "code": "ASCVD",
         "department": "Cardiology",
         "reference": "ACC/AHA ASCVD Risk Estimator",
@@ -103,7 +103,7 @@ available_metrics = [
         "executableCode": "",
     },
     {
-        "id": "CHADS2VASc",
+        "id": "3c4d5e6f7a8b",
         "code": "CHADS2VASc",
         "department": "Cardiology",
         "reference": "CHA2DS2-VASc score for atrial fibrillation",
@@ -121,7 +121,7 @@ available_metrics = [
         "executableCode": "",
     },
     {
-        "id": "LDL_GOAL",
+        "id": "9a8b7c6d5e4f",
         "code": "LDL_GOAL",
         "department": "Cardiology",
         "reference": "ATP III Guidelines",
@@ -155,7 +155,7 @@ async def main():
     print(f"【推荐数量】k = {k}")
     print("=" * 60)
 
-    result = await recommand.recommend(
+    result = await recommand.recommand(
         raw_text=raw_text.strip(),
         available_metrics=json.dumps(available_metrics, ensure_ascii=False),
         k=k,

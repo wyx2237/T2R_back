@@ -2,6 +2,7 @@
 
 from fastapi import APIRouter, Query
 
+from models.metric import CreateMetricRequest
 from models.response import ResponseModel
 from services import metric_store
 
@@ -13,7 +14,7 @@ def list_metrics(
     keyword: str | None = Query(None),
     department: str | None = Query(None),
     page: int = Query(1, ge=1),
-    pageSize: int = Query(20, ge=1, le=100),
+    pageSize: int = Query(20, ge=1, le=1000),
 ) -> ResponseModel:
     """分页查询指标列表，支持关键词搜索和科室筛选，对应 API.md §2.1"""
     data = metric_store.list_metrics(
@@ -35,15 +36,15 @@ def get_metric(metric_id: str) -> ResponseModel:
 
 
 @router.post("/metrics", status_code=200)
-def create_metric(question, formula) -> ResponseModel:
+def create_metric(body: CreateMetricRequest) -> ResponseModel:
     """
     创建医学临床计算指标
 
-    Prams:
-        question(_str_): _指标计算的目标问题_
-        formula(_str_): _对指标的计算方式的完整定义_
+    body:
+        question(str): 指标计算的目标问题
+        formula(str): 对指标的计算方式的完整定义
     """
-    metric = metric_store.create_metric(question, formula)
+    metric = metric_store.create_metric(body.question, body.formula)
     return ResponseModel(message="创建成功", data={"metricId": metric.id})
 
 

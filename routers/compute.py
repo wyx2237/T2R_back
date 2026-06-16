@@ -5,6 +5,7 @@ from fastapi import APIRouter, UploadFile, File
 from models.compute import ComputeSession, ExecuteRequest, MetricComputeResult
 from models.response import ResponseModel
 from services import session_manager, metric_store, executor
+import json
 
 router = APIRouter(prefix="/compute", tags=["Compute"])
 
@@ -14,11 +15,18 @@ async def upload_case_file(file: UploadFile = File(...)) -> ResponseModel:
     """
     上传 .txt 病例文件，创建计算会话，返回可计算指标列表。
     对应 API.md §3.1
+    
+    Returns
+        result:
+            session: ComputeSession
+            recommand_metrics: list
+            standard_metrics: list
     """
     raw_text = (await file.read()).decode("utf-8")
     metrics = metric_store.list_metrics(page_size=1000).items
-    session = session_manager.create_session(raw_text, metrics)
-    return ResponseModel(message="创建成功", data=session)
+    result = await session_manager.create_session(raw_text, metrics)
+    print(json.dumps(result, ensure_ascii=False, indent=4))
+    return ResponseModel(message="创建成功", data=result)
 
 
 @router.get("/sessions/{session_id}")
@@ -31,7 +39,7 @@ def get_session(session_id: str) -> ResponseModel:
 
 
 @router.post("/sessions/{session_id}/execute")
-def execute_compute(session_id: str, data: ExecuteRequest) -> ResponseModel:
+async def execute_compute(session_id: str, data: ExecuteRequest) -> ResponseModel:
     """
     提交选中的指标 ID 和原始文本，执行定量计算并返回逐步骤结果。
     对应 API.md §3.3
@@ -43,7 +51,7 @@ def execute_compute(session_id: str, data: ExecuteRequest) -> ResponseModel:
     if metric is None:
         return ResponseModel(message="指标不存在", status_code=404)
     session_manager.set_selected_metric(session_id, data.metricId)
-    result = executor.execute(metric, data.rawText)
+    result = await executor.execute(metric, data.rawText)
     session_manager.save_results(session_id, [result])
     return ResponseModel(message="计算完成", data=result)
 

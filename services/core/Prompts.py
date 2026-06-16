@@ -169,7 +169,7 @@ WORKFLOW_MODELING_PROMPT = """
                     "output_type": "数据类型"
                 }
             ],
-            "category": "所属类别（工具模板名称），蛇形命名法",
+            "category": "所属类别（工具模板名称），驼峰命名法",
             "reason": "归类原因——解释为什么把这个步骤归类到这一工具模板下",
             "detail": "步骤详细计算过程（字符串）"
         }
@@ -223,7 +223,7 @@ WORKFLOW_MODELING_PROMPT = """
                     "output_type": "float"
                 }
             ],
-            "category": "FormulaCalculation",
+            "category": "FormulaCalculation", # 驼峰命名法
             "reason": "BMI 计算属于基本的人体测量学指标，使用体重和身高两个参数。",
             "detail": "将体重（千克）除以身高（米）的平方。"
         }
@@ -232,6 +232,7 @@ WORKFLOW_MODELING_PROMPT = """
         "output_name": "bmi_value",
         "output_desc": "最终的 BMI 结果",
         "output_type": "float"
+        "output_unit": "输出值的计量单位, 没有单位则null"
     }
 }
 </json>
@@ -336,7 +337,7 @@ CODE_GENERATION_PROMPT = """
       "step_name": "步骤名称（如：计算BMI）",
       "step_description": "稍微详细地描述这一步做了什么（如：根据体重(kg)和身高(m)计算身体质量指数，返回BMI的值）",
       "step_result": 步骤的计算结果（数值或字符串等），
-      "unit": "结果对应的单位，若无单位则设为None"
+      "unit": "结果对应的单位。有单位的物理量运算结果都应该设置单位，如BMI->kg/m²，纯分数则设为score"
   }
 - 代码需要包含必要的注释，说明每个步骤的执行逻辑
 - 最终输出项用 return 语句返回
@@ -504,6 +505,7 @@ EXTRACT_PARAMETERS_STRUCTURED_PROMPT = """
 </json>
 
 ### 特别提醒
+- 严格参照输出格式模板，用XML标签对<json></json>封装json结果
 - 最终输出结果全部为英文，禁止出现中文字符！！
 - normalizedValue 中数值类型的参数，禁止用字符串类型表示，直接用数字类型表示（int 或 float）
 - position 中的 start 和 end 必须是精确的字符索引，对应 rawValue 在【病人信息】原文中的起止位置

@@ -32,7 +32,7 @@ async def execute(metric: Metric, raw_text: str) -> MetricComputeResult:
             metricName=metric.name,
             metricCode=metric.code,
             finalValue=cal_result.get("final_value", 0.0),
-            finalUnit=metric.output.output_type,
+            finalUnit=metric.output.output_unit,
             status="success",
             statusLabel="成功",
             referenceRange={"min": 0, "max": 0},

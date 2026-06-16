@@ -13,6 +13,7 @@ class WorkflowOutput(BaseModel):
     output_name: str
     output_desc: str
     output_type: str
+    output_unit: str
 
 
 class StepInput(BaseModel):
@@ -50,3 +51,8 @@ class Metric(BaseModel):
     output: WorkflowOutput
     steps: list[WorkflowStep]
     executableCode: str
+
+
+class CreateMetricRequest(BaseModel):
+    question: str
+    formula: str

@@ -26,7 +26,8 @@
     "output": {
       "output_name": "eGFR",
       "output_desc": "Estimated glomerular filtration rate",
-      "output_type": "float"
+      "output_type": "float",
+      "output_unit": "mL/(min ⋅ 1.73m²)"
     },
     "steps": [
       {
@@ -135,7 +136,8 @@
     "output": {
       "output_name": "bmi",
       "output_desc": "Final calculated Body Mass Index value",
-      "output_type": "float"
+      "output_type": "float",
+      "output_unit": "kg/m²"
     },
     "steps": [
       {
