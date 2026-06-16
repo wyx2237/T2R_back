@@ -505,10 +505,13 @@ EXTRACT_PARAMETERS_STRUCTURED_PROMPT = """
 </json>
 
 ### 特别提醒
-- 严格参照输出格式模板，用XML标签对<json></json>封装json结果
 - 最终输出结果全部为英文，禁止出现中文字符！！
 - normalizedValue 中数值类型的参数，禁止用字符串类型表示，直接用数字类型表示（int 或 float）
 - position 中的 start 和 end 必须是精确的字符索引，对应 rawValue 在【病人信息】原文中的起止位置
 - 如果【参数定义】中指定的某个参数在【病人信息】中完全找不到，仍需在数组中包含该参数，rawValue 为空字符串 ""，normalizedValue 为 null，confidence 为 0，position 为 { "start": -1, "end": -1 }
 - 不要遗漏【参数定义】中的任何参数，每个参数都必须出现在输出数组中
+
+### 格式提醒
+- 严格参照输出格式模板，用XML标签对<json></json>封装json结果
+- 末尾的</json>标签不能遗漏
 """
