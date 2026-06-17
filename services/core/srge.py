@@ -115,6 +115,7 @@ async def extract_parameters(workflow:dict, patient_info:str, question:str=None)
         try:
             result = await ex_agent.run(task=all_input)
             answer = get_result_content(result)
+            answer = _modify_regex(answer, "json")
             print(f"【ex answer】: \n{answer}")
             result = regex_json(answer)
             print(f"【ex regex answer】: \n{result}")
@@ -276,3 +277,9 @@ def solve(weight_kg, height_cm):
     return bsa_result
 """
     execute_code(code=test_code, input_params={"weight_kg": 70, "height_cm": 178})
+
+def _modify_regex(text:str, keyword:str):
+    mark = f"</{keyword}>"
+    if not text.endswith(mark):
+        text += "\n" + mark
+    return text

@@ -74,7 +74,7 @@ deepseek_v4_pro_client = OpenAIChatCompletionClient(
     model_info={
         "vision": False,
         "function_calling": True,
-        "json_output": True,
+        "json_output": False,
         "family": "unknown",
         "structured_output":True,
         "reasoning_effort": "high"
