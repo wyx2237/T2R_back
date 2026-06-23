@@ -1,4 +1,5 @@
 # text2rule 方法
+import re
 import sys
 sys.path.append("/root/local/BIYELUNWEN/KAITI/DEMO/T2R_back")
 
@@ -25,6 +26,7 @@ async def question_decomposition(patient_info:str, question:str, calculator:dict
             print(f"【qd result】: \n{result}")  # 打印qd结果
             answer = get_result_content(result)
             print(f"【qd answer】: \n{answer}")
+            answer = _modify_json_doc(answer)
             steps = regex_json_doc(answer)
             print(f"【qd steps str】: \n{steps}")
             steps = json.loads(steps)  # 将字符串转换为JSON对象
@@ -73,8 +75,10 @@ async def dependency_verification(steps:list[dict], context:str):
         result = await dv_agent.run(task=all_input)
         answer = get_result_content(result)
         print(f"【dv answer】: \n{answer}")
+        _modify_regex(answer, "json")  # 修正输出格式
         input_source_dict = regex_json(answer)
         input_source_dict = json.loads(input_source_dict)  # 将字符串转换为JSON对象
+        input_source_dict = _modify_dependency(input_source_dict) # 修正输入来源格式
         print(f"【dv input_source_dict】: \n{input_source_dict}")
         
         # 更新上下文字典，添加当前步骤的输入来源
@@ -279,7 +283,50 @@ def solve(weight_kg, height_cm):
     execute_code(code=test_code, input_params={"weight_kg": 70, "height_cm": 178})
 
 def _modify_regex(text:str, keyword:str):
-    mark = f"</{keyword}>"
-    if not text.endswith(mark):
-        text += "\n" + mark
+    start_mark = f"<{keyword}>"
+    end_mark = f"</{keyword}>"
+    if not text.startswith(start_mark):
+        text = start_mark + "\n" + text
+    if not text.endswith(end_mark):
+        text += "\n" + end_mark
+    return text
+
+def _modify_dependency(params:dict):
+    """
+    修复步骤依赖的格式
+    参考格式：
+    {
+        "gender": "$|inputs|.gender",
+        "age_list": "$|1|.age_list",
+        "diabetes_history": "$|2|.diabetes_score"
+    }  
+    可能出现的错误格式：
+    $|step2|.diabetas_score
+    $|steps|.2.diabetas_score
+
+    """
+
+    for key, value in params.items():
+        if value.startswith("$|step"):
+            match = re.match(r"\$\|step(\d+)\|\.(\w+)", value)
+            if match:
+                step_num = int(match.group(1))
+                var_name = match.group(2)  # 获取变量名
+                value = f"$|{step_num}|.{var_name}"
+                continue
+            match = re.match(r"\$\|steps\|\.(\d+)\.(\w+)", value)
+            if match:
+                step_num = int(match.group(1))
+                var_name = match.group(2)  # 获取变量名
+                value = f"$|{step_num}|.{var_name}"
+                continue
+    return params
+
+def _modify_json_doc(text:str):
+    start_mark = "```json"
+    end_mark = "```"
+    if not text.startswith(start_mark):
+        text = start_mark + "\n" + text
+    if not text.endswith(end_mark):
+        text += "\n" + end_mark
     return text

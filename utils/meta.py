@@ -13,7 +13,7 @@ METRIC_INFO_PROMPT = """
 你是一个医学临床指标管理专家，请根据我提供的【指标问题】和【计算公式】，判断该指标所属的科室（department）和参考依据（reference）。
 
 要求：
-1. **name**: 确定指标的规范名称，英文全称 + 简写 (如 Body Mass Index (BMI))
+1. **name**: 确定指标的规范名称，英文全称 + 简写 (如 Body Mass Index (BMI)) ，如果全称很长（远远超过6个单词，则只用简称即可）
 2. **department**: 确定指标所属的临床科室/领域（如 Cardiology、Nephrology、Endocrinology、Pulmonology、Gastroenterology、Neurology、Hematology、Oncology、InfectiousDisease、General 等）。如果指标是通用基础指标（如 BMI），使用 "General"
 3. **reference**: 给出该指标计算方法的依据来源（如临床指南、权威论文、标准公式名称等），控制在 100 字符以内
 
@@ -178,6 +178,7 @@ async def metric_info_generate(question: str, formula: str) -> dict:
             info = json.loads(json_str)
             department = info.get("department", "General")
             reference = info.get("reference", "")
+            rule_name = info.get("name", "")
             break
         except Exception as e:
             try_times += 1
@@ -217,6 +218,7 @@ async def metric_info_generate(question: str, formula: str) -> dict:
     return {
         "id": metric_id,
         "code": code,
+        "name": rule_name,
         "department": department,
         "reference": reference,
     }

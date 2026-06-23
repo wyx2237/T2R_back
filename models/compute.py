@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel
 
@@ -12,7 +12,6 @@ from models.metric import Metric
 
 ComputeStepStatus = Literal["success", "error"]
 ResultStatus = Literal["success", "error", "normal", "borderline", "abnormal"]
-SourceType = Literal["raw", "step"]
 SessionStep = Literal["upload", "select", "result"]
 
 
@@ -29,20 +28,26 @@ class ExtractedParam(BaseModel):
 
 # ── 步骤追溯 ──
 
-class InputSourceItem(BaseModel):
-    sourceType: SourceType
-    sourceLabel: str
+class StepTraceInput(BaseModel):
+    input_name: str
+    input_value: Any | None = None
+    input_unit: str | None = None
+    input_source: str  # "$|inputs|.xxx" 或 "$|steps|.N.output_name"
+
+
+class StepTraceOutput(BaseModel):
+    output_name: str
+    output_value: Any | None = None
+    output_unit: str | None = None
 
 
 class StepTrace(BaseModel):
     order: int
-    toolId: str
-    toolName: str
-    description: str
-    formulaLatex: str | None = None
-    input: dict
-    inputSource: dict[str, InputSourceItem]
-    output: dict
+    category: str
+    step_name: str
+    step_description: str
+    inputs: list[StepTraceInput]
+    outputs: list[StepTraceOutput]
     status: ComputeStepStatus
     errorMessage: str | None = None
 

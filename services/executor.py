@@ -4,7 +4,7 @@ import re
 from typing import Any, Dict, List
 
 from models.metric import Metric, WorkflowStep
-from models.compute import ComputeStepStatus, InputSourceItem, MetricComputeResult, ExtractedParam, StepTrace
+from models.compute import MetricComputeResult, ExtractedParam, StepTrace, StepTraceInput, StepTraceOutput
 from services.core import srge
 
 async def execute(metric: Metric, raw_text: str) -> MetricComputeResult:
@@ -21,12 +21,13 @@ async def execute(metric: Metric, raw_text: str) -> MetricComputeResult:
     # 格式转换
     extracted_params = build_extract_params(extract_param_list)
     input_params = build_input_params(extract_param_list)
+    input_units = build_input_units(extract_param_list)
 
     if check_result["valid"]:
         # 抽取正常：执行计算步骤追踪
         cal_result = srge.execute_code(code=workflow.get("executableCode"), input_params=input_params)
         print(f"【计算结果 cal_result】：\n{cal_result}")
-        step_traces = build_step_traces(cal_result=cal_result, workflow_steps=metric.steps, input_params=input_params)
+        step_traces = build_step_traces(cal_result=cal_result, workflow_steps=metric.steps, input_params=input_params, input_units=input_units)
         return MetricComputeResult(
             metricId=metric.id,
             metricName=metric.name,
@@ -34,7 +35,7 @@ async def execute(metric: Metric, raw_text: str) -> MetricComputeResult:
             finalValue=cal_result.get("final_value", 0.0),
             finalUnit=metric.output.output_unit,
             status="success",
-            statusLabel="成功",
+            statusLabel="success",
             referenceRange={"min": 0, "max": 0},
             steps=step_traces,
             extractedParams=extracted_params,
@@ -50,7 +51,7 @@ async def execute(metric: Metric, raw_text: str) -> MetricComputeResult:
             finalValue=0.0,
             finalUnit=metric.output.output_type,
             status="error",
-            statusLabel=f"参数抽取失败: {error_detail}",
+            statusLabel=f"failed",
             referenceRange=None,
             steps=[],
             extractedParams=extracted_params,
@@ -113,6 +114,22 @@ def build_input_params(extract_param_list: List[Dict]) -> Dict[str, Any]:
         for param in extract_param_list
     }
 
+def build_input_units(extract_param_list: List[Dict]) -> Dict[str, str]:
+    """
+    从 ExtractedParam 列表提取参数单位映射 { param_name: unit }。
+
+    Args:
+        extract_param_list: ExtractedParam 结构的字典列表
+
+    Returns:
+        { "SerumCreatinine": "mg/dL", "Age": "years", ... }
+    """
+    return {
+        param["name"]: param.get("unit", "")
+        for param in extract_param_list
+    }
+
+
 def build_extract_params(extract_param_list: List[Dict], raw_text: str = "") -> List[ExtractedParam]:
     """
     将输入参数字典列表转换为 ExtractedParam 对象列表。
@@ -136,7 +153,7 @@ def build_extract_params(extract_param_list: List[Dict], raw_text: str = "") -> 
         ))
     return extracted_params
 
-def build_step_traces(cal_result: Dict[str, Any], workflow_steps: List[WorkflowStep], input_params:Dict) -> List[StepTrace]:
+def build_step_traces(cal_result: Dict[str, Any], workflow_steps: List[WorkflowStep], input_params: Dict, input_units: Dict[str, str] = None) -> List[StepTrace]:
     """
     将计算结果和 workflow 步骤定义按顺序转换为 StepTrace 列表。
 
@@ -156,51 +173,62 @@ def build_step_traces(cal_result: Dict[str, Any], workflow_steps: List[WorkflowS
     } # 上下文变量字典，保存原始和步骤的输出
     for order, (res_step, ws) in enumerate(zip(result_steps, workflow_steps), start=1):
         print(f"[cur order]: {order}")
-        # 构建 inputSource 字典、Input 字典
-        input_source_dict = {}
-        input_dict = {}
+
+        # 构建 inputs 列表
+        input_list = []
         for inp in ws.step_inputs:
             print(f"[cur context]: {context}")
             if "$|inputs|" in inp.input_source:
                 match = re.search(r"\$\|inputs\|\.(\w+)", inp.input_source)
                 source_name = match.group(1)
-                source_type = "raw"
-                source_label = inp.input_source
                 input_value = context["inputs"].get(source_name)
+                input_unit = (input_units or {}).get(source_name, "")
             else:
-                source_type = "step"
-                # 从 "$|steps|.N.output_name" 中解析步骤序号
+                # 从 "$|N|.output_name" 中解析步骤序号
                 print(f"[input source]: {inp.input_source}")
-                match = re.search(r"\$\|steps\|\.(\d+).(\w+)", inp.input_source)
+                match = re.search(r"\$\|(\d+)\|\.(\w+)", inp.input_source)
                 source_order = match.group(1)
                 source_name = match.group(2)
-                source_label = f"step {source_order}"
                 input_value = context["steps"][source_order].get(source_name)
-            input_source_dict[inp.input_name] = InputSourceItem(
-                sourceType=source_type,
-                sourceLabel=source_label,
-            )
-            input_dict[inp.input_name] = input_value
-            
-        
-        # 构建 output 字典（计算结果和单位）
-        output_dict = {
-            "output_name": ws.step_outputs[0].output_name,
-            "result": res_step.get("step_result"),
-            "unit": res_step.get("unit")
-        }
-        context["steps"][str(order)] = { ws.step_outputs[0].output_name: res_step.get("step_result")}
-        
-  
+                input_unit = ""
+
+            input_list.append(StepTraceInput(
+                input_name=inp.input_name,
+                input_value=input_value,
+                input_unit=input_unit,
+                input_source=inp.input_source,
+            ))
+
+        # 构建 outputs 列表
+        step_result = res_step.get("step_result")
+        unit = res_step.get("unit")
+        output_list = []
+        if isinstance(step_result, dict):
+            for so in ws.step_outputs:
+                output_list.append(StepTraceOutput(
+                    output_name=so.output_name,
+                    output_value=step_result.get(so.output_name),
+                    output_unit=unit,
+                ))
+            context["steps"][str(order)] = step_result
+        else:
+            if ws.step_outputs:
+                output_list.append(StepTraceOutput(
+                    output_name=ws.step_outputs[0].output_name,
+                    output_value=step_result,
+                    output_unit=unit,
+                ))
+                context["steps"][str(order)] = {ws.step_outputs[0].output_name: step_result}
+            else:
+                context["steps"][str(order)] = {"result": step_result}
+
         trace = StepTrace(
             order=order,
-            toolId=f"tool_{ws.step_name}",          # 默认生成 toolId
-            toolName=ws.step_name,
-            description=ws.step_description,
-            formulaLatex=None,                      # 缺失字段设 None
-            input=input_dict,
-            inputSource=input_source_dict,
-            output=output_dict,
+            category=ws.category,
+            step_name=ws.step_name,
+            step_description=ws.step_description,
+            inputs=input_list,
+            outputs=output_list,
             status="success",       # 默认成功
             errorMessage=None
         )

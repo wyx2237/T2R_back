@@ -1,6 +1,7 @@
 """计算会话管理 —— 内存字典存储，管理上传 → 选指标 → 执行 三阶段"""
 
 from datetime import datetime, timezone
+import json
 from uuid import uuid4
 
 from models.compute import ComputeSession, MetricComputeResult
@@ -16,7 +17,8 @@ async def create_session(raw_text: str, all_metrics: list[Metric]) -> ComputeSes
     """上传文件后创建新会话，返回带 sessionId 的会话对象"""
     # 只保留 metric 元信息字段
     available_metrics = [
-        {
+        {   
+            "id": metric.id,
             "name": metric.name,
             "description": metric.description,
             "department": metric.department,
@@ -25,8 +27,9 @@ async def create_session(raw_text: str, all_metrics: list[Metric]) -> ComputeSes
         for metric in all_metrics
     ]
     recommand_metrics = await recommand.recommand(raw_text, available_metrics, 5)  # 先占位
+    print(f"[Recommand Metrics]: \n{json.dumps(recommand_metrics, ensure_ascii=False, indent=4)}")
     standard_metrics = [
-        m
+        m.model_dump()
         for metric in recommand_metrics
         if (m := metric_store.get_metric_by_id(metric.get("indicatorId"))) is not None
     ]

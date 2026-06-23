@@ -25,7 +25,7 @@ async def upload_case_file(file: UploadFile = File(...)) -> ResponseModel:
     raw_text = (await file.read()).decode("utf-8")
     metrics = metric_store.list_metrics(page_size=1000).items
     result = await session_manager.create_session(raw_text, metrics)
-    print(json.dumps(result, ensure_ascii=False, indent=4))
+    # print(json.dumps(result, ensure_ascii=False, indent=4))
     return ResponseModel(message="创建成功", data=result)
 
 

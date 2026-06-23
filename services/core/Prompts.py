@@ -177,7 +177,8 @@ WORKFLOW_MODELING_PROMPT = """
     "output": {
         "output_name": "最终输出参数名称（蛇形命名法）",
         "output_desc": "最终输出参数描述",
-        "output_type": "数据类型"
+        "output_type": "数据类型",
+        "output_unit": "输出值的计量单位, 没有单位则null"
     }
 }
 </json>
@@ -232,7 +233,7 @@ WORKFLOW_MODELING_PROMPT = """
         "output_name": "bmi_value",
         "output_desc": "最终的 BMI 结果",
         "output_type": "float"
-        "output_unit": "输出值的计量单位, 没有单位则null"
+        "output_unit": "kg/m^2"
     }
 }
 </json>
@@ -267,7 +268,7 @@ DEPENDENCY_VERIFICATION_PROMPT = """
 
 ### 来源字符串的格式
 - 如果参数来源于上下文中的**初始输入**（inputs），则格式为：`$|inputs|.xxx`，其中 `xxx` 为初始输入参数名。
-- 如果参数来源于前面某个**步骤的输出**，则格式为：`$|step_id|.xxx`，其中 `step_id` 为步骤编号（字符串），`xxx` 为该步骤输出的参数名。
+- 如果参数来源于前面某个**步骤的输出**，则格式为：`$|num|.xxx`，其中 num 为步骤编号（字符串），`xxx` 为该步骤输出的参数名。
 - 如果参数**无需输入**，直接绑定一个静态值（即不依赖上下文），则直接输出该静态值的字符串表示，例如 `"male"`、`"42"`、`"true"` 等。
 
 ### 约束与检查

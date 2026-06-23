@@ -36,7 +36,7 @@ def get_metric(metric_id: str) -> ResponseModel:
 
 
 @router.post("/metrics", status_code=200)
-def create_metric(body: CreateMetricRequest) -> ResponseModel:
+async def create_metric(body: CreateMetricRequest) -> ResponseModel:
     """
     创建医学临床计算指标
 
@@ -44,7 +44,7 @@ def create_metric(body: CreateMetricRequest) -> ResponseModel:
         question(str): 指标计算的目标问题
         formula(str): 对指标的计算方式的完整定义
     """
-    metric = metric_store.create_metric(body.question, body.formula)
+    metric = await metric_store.create_metric(body.question, body.formula)
     return ResponseModel(message="创建成功", data={"metricId": metric.id})
 
 

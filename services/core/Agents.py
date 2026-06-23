@@ -10,7 +10,7 @@ from services.core.Models import deepseek_v4_pro_client, qwen3_8b_model_client
 from services.core.Prompts import EXTRACT_PARAMETERS_PROMPT, EXTRACT_PARAMETERS_STRUCTURED_PROMPT, QUESTION_DECOMPOSITION_PROMPT_ALL, WORKFLOW_MODELING_PROMPT, DEPENDENCY_VERIFICATION_PROMPT, CODE_GENERATION_PROMPT
 from services.core.Prompts import QUESTION_DECOMPOSITION_WO_ATOMIC
 MODEL_CLIENT = deepseek_v4_pro_client
-# MODEL_CLIENT = qwen3_8b_model_client
+FAST_MODEL_CLIENT = qwen3_8b_model_client
 """
 # Step1: 步骤分解
 - 将需要计算的复杂问题拆分为多个简单独立的子步骤
@@ -66,7 +66,7 @@ def get_WorkflowModeler():
 def get_DependencyVerifier():
     DVPrompt = DEPENDENCY_VERIFICATION_PROMPT
     return AssistantAgent(
-        model_client=MODEL_CLIENT,
+        model_client=FAST_MODEL_CLIENT,
         name="DependencyVerifier",
         description="一个能够检查计算流程中每个步骤的依赖关系是否符合要求的智能体",
         system_message=DVPrompt,

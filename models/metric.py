@@ -13,7 +13,7 @@ class WorkflowOutput(BaseModel):
     output_name: str
     output_desc: str
     output_type: str
-    output_unit: str
+    output_unit: str | None
 
 
 class StepInput(BaseModel):

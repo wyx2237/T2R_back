@@ -1,159 +1,59 @@
 [
   {
-    "id": "metric_001",
-    "code": "REN-001",
+    "id": "d4c77028f701",
+    "code": "NEP-001",
     "department": "Nephrology",
-    "reference": "CKD-EPI 2021 (KDIGO)",
-    "name": "eGFR (CKD-EPI)",
-    "description": "Estimate glomerular filtration rate based on serum creatinine, age, and sex using the CKD-EPI 2021 formula.",
+    "reference": "Cockcroft-Gault formula with weight adjustment based on BMI and Devine formula for IBW, per clinical guidelines",
+    "name": "Creatinine Clearance (Cockcroft-Gault Equation)",
+    "description": "Compute creatinine clearance (CrCl) using the Cockcroft-Gault equation, incorporating BMI-based weight selection and ideal/adjusted body weight calculations.",
     "inputs": [
       {
-        "input_name": "SerumCreatinine",
-        "input_desc": "Serum creatinine level",
-        "input_type": "float"
-      },
-      {
-        "input_name": "Age",
-        "input_desc": "Patient age",
+        "input_name": "age",
+        "input_desc": "Patient's age in years",
         "input_type": "int"
       },
       {
-        "input_name": "Sex",
-        "input_desc": "Patient biological sex (M/F)",
-        "input_type": "enum"
-      }
-    ],
-    "output": {
-      "output_name": "eGFR",
-      "output_desc": "Estimated glomerular filtration rate",
-      "output_type": "float",
-      "output_unit": "mL/(min ⋅ 1.73m²)"
-    },
-    "steps": [
-      {
-        "step_id": "1",
-        "step_name": "convert_creatinine_units",
-        "step_description": "Convert serum creatinine units from μmol/L to mg/dL if needed.",
-        "step_inputs": [
-          {
-            "input_name": "SerumCreatinine",
-            "input_desc": "Serum creatinine level",
-            "input_type": "float",
-            "input_source": "$|inputs|.SerumCreatinine"
-          }
-        ],
-        "step_outputs": [
-          {
-            "output_name": "Scr_mg_dL",
-            "output_desc": "Serum creatinine in mg/dL",
-            "output_type": "float"
-          }
-        ],
-        "category": "unit_conversion",
-        "reason": "The CKD-EPI formula requires serum creatinine in mg/dL; input may be provided in other units.",
-        "detail": "If the input creatinine unit is already mg/dL, this step passes through unchanged. Otherwise, divide by 88.4 to convert from μmol/L."
-      },
-      {
-        "step_id": "2",
-        "step_name": "compute_egfr_ckd_epi",
-        "step_description": "Compute eGFR using the CKD-EPI 2021 formula.",
-        "step_inputs": [
-          {
-            "input_name": "Scr_mg_dL",
-            "input_desc": "Serum creatinine in mg/dL",
-            "input_type": "float",
-            "input_source": "$|steps|.1.Scr_mg_dL"
-          },
-          {
-            "input_name": "Age",
-            "input_desc": "Patient age",
-            "input_type": "int",
-            "input_source": "$|inputs|.Age"
-          },
-          {
-            "input_name": "Sex",
-            "input_desc": "Patient biological sex",
-            "input_type": "enum",
-            "input_source": "$|inputs|.Sex"
-          }
-        ],
-        "step_outputs": [
-          {
-            "output_name": "eGFR",
-            "output_desc": "Estimated GFR value",
-            "output_type": "float"
-          }
-        ],
-        "category": "formula_calculation",
-        "reason": "The CKD-EPI formula is the gold standard for estimating kidney function from serum markers.",
-        "detail": "eGFR = 142 × min(Scr/κ, 1)^α × max(Scr/κ, 1)^(-1.200) × 0.9938^Age × 1.012 [if female]. κ = 0.7 (female) or 0.9 (male); α = -0.241 (female) or -0.302 (male)."
-      },
-      {
-        "step_id": "3",
-        "step_name": "classify_ckd_stage",
-        "step_description": "Classify CKD stage based on the computed eGFR value.",
-        "step_inputs": [
-          {
-            "input_name": "eGFR",
-            "input_desc": "Estimated GFR value",
-            "input_type": "float",
-            "input_source": "$|steps|.2.eGFR"
-          }
-        ],
-        "step_outputs": [
-          {
-            "output_name": "CKD_Stage",
-            "output_desc": "CKD stage classification",
-            "output_type": "string"
-          }
-        ],
-        "category": "condition_evaluation",
-        "reason": "Clinical guidelines require staging to determine treatment and monitoring plans.",
-        "detail": "Stage 1: eGFR ≥ 90; Stage 2: 60-89; Stage 3a: 45-59; Stage 3b: 30-44; Stage 4: 15-29; Stage 5: < 15."
-      }
-    ],
-    "executableCode": "def solve(SerumCreatinine, Age, Sex):\n    Scr_mg_dL = SerumCreatinine\n    yield {\"step_name\": \"convert_creatinine_units\", \"step_result\": Scr_mg_dL, \"unit\": \"mg/dL\"}\n\n    kappa = 0.7 if Sex == \"F\" else 0.9\n    alpha = -0.241 if Sex == \"F\" else -0.302\n    sex_factor = 1.012 if Sex == \"F\" else 1.0\n    ratio = Scr_mg_dL / kappa\n    eGFR = 142 * min(ratio, 1) ** alpha * max(ratio, 1) ** (-1.200) * 0.9938 ** Age * sex_factor\n    yield {\"step_name\": \"compute_egfr_ckd_epi\", \"step_result\": round(eGFR, 1), \"unit\": \"mL/min/1.73m²\"}\n\n    if eGFR >= 90: stage = \"Stage 1\"\n    elif eGFR >= 60: stage = \"Stage 2\"\n    elif eGFR >= 45: stage = \"Stage 3a\"\n    elif eGFR >= 30: stage = \"Stage 3b\"\n    elif eGFR >= 15: stage = \"Stage 4\"\n    else: stage = \"Stage 5\"\n    yield {\"step_name\": \"classify_ckd_stage\", \"step_result\": stage, \"unit\": None}\n\n    return round(eGFR, 1)"
-  },
-  {
-    "id": "06847e6c0a2e",
-    "code": "GEN-001",
-    "department": "General",
-    "reference": "WHO BMI classification standard; weight (kg) / height (m)^2",
-    "name": "bmi_calculation_workflow",
-    "description": "Calculate Body Mass Index (BMI) using weight in kilograms and height in meters.",
-    "inputs": [
-      {
         "input_name": "weight_kg",
-        "input_desc": "Body weight in kilograms",
+        "input_desc": "Patient's actual body weight in kg",
         "input_type": "float"
       },
       {
         "input_name": "height_m",
-        "input_desc": "Body height in meters",
+        "input_desc": "Patient's height in meters",
+        "input_type": "float"
+      },
+      {
+        "input_name": "is_male",
+        "input_desc": "Whether the patient is male; true for male, false for female",
+        "input_type": "bool"
+      },
+      {
+        "input_name": "serum_creatinine_mg_dl",
+        "input_desc": "Serum creatinine in mg/dL",
         "input_type": "float"
       }
     ],
     "output": {
-      "output_name": "bmi",
-      "output_desc": "Final calculated Body Mass Index value",
+      "output_name": "crcl_ml_min",
+      "output_desc": "Final creatinine clearance result in mL/min",
       "output_type": "float",
-      "output_unit": "kg/m²"
+      "output_unit": "mL/min"
     },
     "steps": [
       {
         "step_id": "1",
-        "step_name": "compute_bmi",
-        "step_description": "Calculate BMI using the formula: bmi = weight_kg / (height_m^2), rounded to 4 decimal places.",
+        "step_name": "calculate_bmi",
+        "step_description": "Compute BMI from weight and height",
         "step_inputs": [
           {
             "input_name": "weight_kg",
-            "input_desc": "Body weight in kilograms",
+            "input_desc": "Patient's actual body weight in kg",
             "input_type": "float",
             "input_source": "$|inputs|.weight_kg"
           },
           {
             "input_name": "height_m",
-            "input_desc": "Body height in meters",
+            "input_desc": "Patient's height in meters",
             "input_type": "float",
             "input_source": "$|inputs|.height_m"
           }
@@ -161,15 +61,2912 @@
         "step_outputs": [
           {
             "output_name": "bmi",
-            "output_desc": "Calculated Body Mass Index value",
+            "output_desc": "Calculated BMI value",
             "output_type": "float"
           }
         ],
-        "category": "formula_calculation",
-        "reason": "The computation involves applying a precise mathematical formula (weight divided by squared height) to numeric inputs to produce a numeric output, which aligns with the FormulaCalculation tool's scope for exact numerical calculations.",
-        "detail": "Calculate BMI using the formula: bmi = weight_kg / (height_m ** 2). Round the result to 4 decimal places."
+        "category": "FormulaCalculation",
+        "reason": "BMI is computed using a standard mathematical formula with weight and height.",
+        "detail": "BMI = weight_kg / (height_m * height_m)"
+      },
+      {
+        "step_id": "2",
+        "step_name": "convert_height_to_inches",
+        "step_description": "Convert height from meters to inches for Devine formula",
+        "step_inputs": [
+          {
+            "input_name": "height_m",
+            "input_desc": "Patient's height in meters",
+            "input_type": "float",
+            "input_source": "$|inputs|.height_m"
+          }
+        ],
+        "step_outputs": [
+          {
+            "output_name": "height_in",
+            "output_desc": "Patient's height in inches",
+            "output_type": "float"
+          }
+        ],
+        "category": "UnitConversion",
+        "reason": "The Devine formula requires height in inches, necessitating conversion from meters.",
+        "detail": "height_in = height_m * 39.3701"
+      },
+      {
+        "step_id": "3",
+        "step_name": "calculate_ideal_body_weight",
+        "step_description": "Compute ideal body weight using Devine formula based on gender and height in inches",
+        "step_inputs": [
+          {
+            "input_name": "height_in",
+            "input_desc": "Patient's height in inches",
+            "input_type": "float",
+            "input_source": "$|2|.height_in"
+          },
+          {
+            "input_name": "is_male",
+            "input_desc": "Whether the patient is male",
+            "input_type": "bool",
+            "input_source": "$|inputs|.is_male"
+          }
+        ],
+        "step_outputs": [
+          {
+            "output_name": "ibw_kg",
+            "output_desc": "Ideal body weight in kg",
+            "output_type": "float"
+          }
+        ],
+        "category": "ConditionEvaluation",
+        "reason": "IBW calculation uses a conditional formula based on gender (male/female).",
+        "detail": "If is_male is true: IBW = 50 + 2.3 * (height_in - 60); If is_male is false: IBW = 45.5 + 2.3 * (height_in - 60)."
+      },
+      {
+        "step_id": "4",
+        "step_name": "calculate_adjusted_body_weight",
+        "step_description": "Compute adjusted body weight from IBW and actual weight",
+        "step_inputs": [
+          {
+            "input_name": "ibw_kg",
+            "input_desc": "Ideal body weight in kg",
+            "input_type": "float",
+            "input_source": "$|3|.ibw_kg"
+          },
+          {
+            "input_name": "weight_kg",
+            "input_desc": "Patient's actual body weight in kg",
+            "input_type": "float",
+            "input_source": "$|inputs|.weight_kg"
+          }
+        ],
+        "step_outputs": [
+          {
+            "output_name": "abw_kg",
+            "output_desc": "Adjusted body weight in kg",
+            "output_type": "float"
+          }
+        ],
+        "category": "FormulaCalculation",
+        "reason": "ABW is a simple linear formula using IBW and actual weight.",
+        "detail": "ABW = ibw_kg + 0.4 * (weight_kg - ibw_kg)"
+      },
+      {
+        "step_id": "5",
+        "step_name": "select_weight_for_crcl",
+        "step_description": "Select weight to use in CrCl formula based on BMI thresholds",
+        "step_inputs": [
+          {
+            "input_name": "bmi",
+            "input_desc": "Calculated BMI",
+            "input_type": "float",
+            "input_source": "$|1|.bmi"
+          },
+          {
+            "input_name": "weight_kg",
+            "input_desc": "Actual body weight in kg",
+            "input_type": "float",
+            "input_source": "$|inputs|.weight_kg"
+          },
+          {
+            "input_name": "ibw_kg",
+            "input_desc": "Ideal body weight in kg",
+            "input_type": "float",
+            "input_source": "$|3|.ibw_kg"
+          },
+          {
+            "input_name": "abw_kg",
+            "input_desc": "Adjusted body weight in kg",
+            "input_type": "float",
+            "input_source": "$|4|.abw_kg"
+          }
+        ],
+        "step_outputs": [
+          {
+            "output_name": "selected_weight",
+            "output_desc": "Weight value to use in CrCl formula, in kg",
+            "output_type": "float"
+          }
+        ],
+        "category": "ThresholdMapping",
+        "reason": "Weight selection depends on mapping continuous BMI to discrete categories (underweight, normal, overweight/obese).",
+        "detail": "If BMI < 18.5: selected_weight = weight_kg; If 18.5 <= BMI < 25: selected_weight = ibw_kg; If BMI >= 25: selected_weight = abw_kg."
+      },
+      {
+        "step_id": "6",
+        "step_name": "calculate_creatinine_clearance",
+        "step_description": "Compute CrCl using Cockcroft-Gault equation",
+        "step_inputs": [
+          {
+            "input_name": "age",
+            "input_desc": "Patient's age in years",
+            "input_type": "int",
+            "input_source": "$|inputs|.age"
+          },
+          {
+            "input_name": "selected_weight",
+            "input_desc": "Selected weight in kg",
+            "input_type": "float",
+            "input_source": "$|5|.selected_weight"
+          },
+          {
+            "input_name": "is_male",
+            "input_desc": "Whether the patient is male",
+            "input_type": "bool",
+            "input_source": "$|inputs|.is_male"
+          },
+          {
+            "input_name": "serum_creatinine_mg_dl",
+            "input_desc": "Serum creatinine in mg/dL",
+            "input_type": "float",
+            "input_source": "$|inputs|.serum_creatinine_mg_dl"
+          }
+        ],
+        "step_outputs": [
+          {
+            "output_name": "crcl_ml_min",
+            "output_desc": "Creatinine clearance in mL/min",
+            "output_type": "float"
+          }
+        ],
+        "category": "FormulaCalculation",
+        "reason": "CrCl is computed using a precise mathematical formula with the selected parameters.",
+        "detail": "gender_coefficient = 1 if is_male else 0.85; CrCl = ((140 - age) * selected_weight * gender_coefficient) / (72 * serum_creatinine_mg_dl)"
       }
     ],
-    "executableCode": "import math\n\ndef solve(weight_kg, height_m):\n    # Step 1: Calculate BMI using the formula: bmi = weight_kg / (height_m^2), rounded to 4 decimal places.\n    if height_m <= 0:\n        raise ValueError(\"Height must be a positive number.\")\n    bmi = round(weight_kg / (height_m ** 2), 4)\n    \n    yield {\n        \"step_name\": \"compute_bmi\",\n        \"step_description\": \"Calculate BMI using the formula: bmi = weight_kg / (height_m^2), rounded to 4 decimal places.\",\n        \"step_result\": bmi,\n        \"unit\": None\n    }\n    \n    # Return the final result\n    return bmi"
+    "executableCode": "def solve(age, weight_kg, height_m, is_male, serum_creatinine_mg_dl):\n    # Step 1: calculate_bmi\n    # Compute BMI from weight and height\n    bmi = weight_kg / (height_m * height_m)\n    yield {\n        \"step_name\": \"calculate_bmi\",\n        \"step_description\": \"Compute BMI from weight and height\",\n        \"step_result\": bmi,\n        \"unit\": \"kg/m²\"\n    }\n\n    # Step 2: convert_height_to_inches\n    # Convert height from meters to inches for Devine formula\n    height_in = height_m * 39.3701\n    yield {\n        \"step_name\": \"convert_height_to_inches\",\n        \"step_description\": \"Convert height from meters to inches for Devine formula\",\n        \"step_result\": height_in,\n        \"unit\": \"in\"\n    }\n\n    # Step 3: calculate_ideal_body_weight\n    # Compute ideal body weight using Devine formula based on gender and height in inches\n    if is_male:\n        ibw_kg = 50 + 2.3 * (height_in - 60)\n    else:\n        ibw_kg = 45.5 + 2.3 * (height_in - 60)\n    yield {\n        \"step_name\": \"calculate_ideal_body_weight\",\n        \"step_description\": \"Compute ideal body weight using Devine formula based on gender and height in inches\",\n        \"step_result\": ibw_kg,\n        \"unit\": \"kg\"\n    }\n\n    # Step 4: calculate_adjusted_body_weight\n    # Compute adjusted body weight from IBW and actual weight\n    abw_kg = ibw_kg + 0.4 * (weight_kg - ibw_kg)\n    yield {\n        \"step_name\": \"calculate_adjusted_body_weight\",\n        \"step_description\": \"Compute adjusted body weight from IBW and actual weight\",\n        \"step_result\": abw_kg,\n        \"unit\": \"kg\"\n    }\n\n    # Step 5: select_weight_for_crcl\n    # Select weight to use in CrCl formula based on BMI thresholds\n    if bmi < 18.5:\n        selected_weight = weight_kg\n    elif 18.5 <= bmi < 25:\n        selected_weight = ibw_kg\n    else:  # BMI >= 25\n        selected_weight = abw_kg\n    yield {\n        \"step_name\": \"select_weight_for_crcl\",\n        \"step_description\": \"Select weight to use in CrCl formula based on BMI thresholds\",\n        \"step_result\": selected_weight,\n        \"unit\": \"kg\"\n    }\n\n    # Step 6: calculate_creatinine_clearance\n    # Compute CrCl using Cockcroft-Gault equation\n    gender_coefficient = 1 if is_male else 0.85\n    crcl_ml_min = ((140 - age) * selected_weight * gender_coefficient) / (72 * serum_creatinine_mg_dl)\n    yield {\n        \"step_name\": \"calculate_creatinine_clearance\",\n        \"step_description\": \"Compute CrCl using Cockcroft-Gault equation\",\n        \"step_result\": crcl_ml_min,\n        \"unit\": \"mL/min\"\n    }\n\n    return crcl_ml_min"
+  },
+  {
+    "id": "dc95a603486a",
+    "code": "NEP-002",
+    "department": "Nephrology",
+    "reference": "2021 CKD-EPI Creatinine Equation (Inker et al., N Engl J Med 2021)",
+    "name": "Glomerular Filtration Rate (GFR)",
+    "description": "Calculate estimated Glomerular Filtration Rate (eGFR) using the 2021 CKD-EPI Creatinine equation based on patient gender, serum creatinine, and age.",
+    "inputs": [
+      {
+        "input_name": "gender",
+        "input_desc": "Patient gender, either 'female' or 'male'",
+        "input_type": "str"
+      },
+      {
+        "input_name": "scr",
+        "input_desc": "Serum creatinine concentration in mg/dL",
+        "input_type": "float"
+      },
+      {
+        "input_name": "age",
+        "input_desc": "Patient age in years",
+        "input_type": "int"
+      }
+    ],
+    "output": {
+      "output_name": "egfr",
+      "output_desc": "Estimated Glomerular Filtration Rate (eGFR) calculated using the 2021 CKD-EPI Creatinine equation",
+      "output_type": "float",
+      "output_unit": "mL/min/1.73 m^2"
+    },
+    "steps": [
+      {
+        "step_id": "1",
+        "step_name": "determine_coefficients_a_and_b",
+        "step_description": "Based on patient gender and serum creatinine (Scr) level, determine the values for coefficients A and B as per the 2021 CKD-EPI Creatinine equation rules.",
+        "step_inputs": [
+          {
+            "input_name": "gender",
+            "input_desc": "Patient gender, either 'female' or 'male'",
+            "input_type": "str",
+            "input_source": "$|inputs|.gender"
+          },
+          {
+            "input_name": "scr",
+            "input_desc": "Serum creatinine concentration in mg/dL",
+            "input_type": "float",
+            "input_source": "$|inputs|.scr"
+          }
+        ],
+        "step_outputs": [
+          {
+            "output_name": "a",
+            "output_desc": "Coefficient A for the CKD-EPI equation",
+            "output_type": "float"
+          },
+          {
+            "output_name": "b",
+            "output_desc": "Coefficient B for the CKD-EPI equation",
+            "output_type": "float"
+          }
+        ],
+        "category": "ConditionEvaluation",
+        "reason": "The step requires evaluating conditions based on gender and a Scr threshold to assign discrete values to A and B, which fits the condition evaluation pattern.",
+        "detail": "If gender is female: A = 0.7. If Scr <= 0.7, B = -0.241; if Scr > 0.7, B = -1.2. If gender is male: A = 0.9. If Scr <= 0.9, B = -0.302; if Scr > 0.9, B = -1.2."
+      },
+      {
+        "step_id": "2",
+        "step_name": "determine_gender_coefficient",
+        "step_description": "Determine the gender coefficient for the CKD-EPI equation based on patient gender.",
+        "step_inputs": [
+          {
+            "input_name": "gender",
+            "input_desc": "Patient gender, either 'female' or 'male'",
+            "input_type": "str",
+            "input_source": "$|inputs|.gender"
+          }
+        ],
+        "step_outputs": [
+          {
+            "output_name": "gender_coefficient",
+            "output_desc": "Gender coefficient multiplier (1.012 for female, 1.0 for male)",
+            "output_type": "float"
+          }
+        ],
+        "category": "ConditionEvaluation",
+        "reason": "This step involves a simple conditional assignment based on a discrete input (gender), matching the condition evaluation pattern.",
+        "detail": "If gender is female, gender_coefficient = 1.012. If gender is male, gender_coefficient = 1.0."
+      },
+      {
+        "step_id": "3",
+        "step_name": "calculate_egfr_ckd_epi_2021",
+        "step_description": "Compute the estimated Glomerular Filtration Rate (eGFR) using the 2021 CKD-EPI Creatinine equation: 142 * (Scr/A)^B * 0.9938^age * gender_coefficient.",
+        "step_inputs": [
+          {
+            "input_name": "scr",
+            "input_desc": "Serum creatinine concentration in mg/dL",
+            "input_type": "float",
+            "input_source": "$|inputs|.scr"
+          },
+          {
+            "input_name": "a",
+            "input_desc": "Coefficient A from previous step",
+            "input_type": "float",
+            "input_source": "$|1|.a"
+          },
+          {
+            "input_name": "b",
+            "input_desc": "Coefficient B from previous step",
+            "input_type": "float",
+            "input_source": "$|1|.b"
+          },
+          {
+            "input_name": "age",
+            "input_desc": "Patient age in years",
+            "input_type": "int",
+            "input_source": "$|inputs|.age"
+          },
+          {
+            "input_name": "gender_coefficient",
+            "input_desc": "Gender coefficient (1.012 for female, 1.0 for male)",
+            "input_type": "float",
+            "input_source": "$|2|.gender_coefficient"
+          }
+        ],
+        "step_outputs": [
+          {
+            "output_name": "egfr",
+            "output_desc": "Estimated Glomerular Filtration Rate in mL/min/1.73 m^2",
+            "output_type": "float"
+          }
+        ],
+        "category": "FormulaCalculation",
+        "reason": "This is a precise mathematical formula calculation with exponentiation operations, fitting the formula calculation pattern.",
+        "detail": "eGFR = 142 * (Scr / A)^B * (0.9938^age) * gender_coefficient. All inputs are used directly in this formula. The result should be rounded to 4 decimal places at most."
+      }
+    ],
+    "executableCode": "import math\n\ndef solve(gender, scr, age):\n    # Step 1: Determine coefficients A and B based on gender and serum creatinine\n    if gender == 'female':\n        a = 0.7\n        if scr <= 0.7:\n            b = -0.241\n        else:\n            b = -1.2\n    elif gender == 'male':\n        a = 0.9\n        if scr <= 0.9:\n            b = -0.302\n        else:\n            b = -1.2\n    else:\n        raise ValueError(\"Gender must be 'female' or 'male'\")\n    \n    yield {\n        \"step_name\": \"determine_coefficients_a_and_b\",\n        \"step_description\": \"Based on patient gender and serum creatinine (Scr) level, determine the values for coefficients A and B as per the 2021 CKD-EPI Creatinine equation rules.\",\n        \"step_result\": {\"a\": a, \"b\": b},\n        \"unit\": \"dimensionless\"\n    }\n    \n    # Step 2: Determine gender coefficient\n    if gender == 'female':\n        gender_coefficient = 1.012\n    else:\n        gender_coefficient = 1.0\n    \n    yield {\n        \"step_name\": \"determine_gender_coefficient\",\n        \"step_description\": \"Determine the gender coefficient for the CKD-EPI equation based on patient gender.\",\n        \"step_result\": gender_coefficient,\n        \"unit\": \"dimensionless\"\n    }\n    \n    # Step 3: Calculate eGFR using the 2021 CKD-EPI Creatinine equation\n    egfr = 142 * ((scr / a) ** b) * (0.9938 ** age) * gender_coefficient\n    egfr = round(egfr, 4)\n    \n    yield {\n        \"step_name\": \"calculate_egfr_ckd_epi_2021\",\n        \"step_description\": \"Compute the estimated Glomerular Filtration Rate (eGFR) using the 2021 CKD-EPI Creatinine equation: 142 * (Scr/A)^B * 0.9938^age * gender_coefficient.\",\n        \"step_result\": egfr,\n        \"unit\": \"mL/min/1.73 m^2\"\n    }\n    \n    return egfr"
+  },
+  {
+    "id": "d4664493f15b",
+    "code": "CAR-001",
+    "department": "Cardiology",
+    "reference": "European Society of Cardiology (ESC) 2020 Guidelines for the diagnosis and management of atrial fibrillation",
+    "name": "CHA2DS2-VASc Score for Atrial Fibrillation Stroke Risk (CHA2DS2-VASc)",
+    "description": "Calculate the CHA2DS2-VASc score for stroke risk assessment in atrial fibrillation based on age, sex, CHF history, hypertension history, stroke/TIA/thromboembolism history, vascular disease history, and diabetes history.",
+    "inputs": [
+      {
+        "input_name": "age",
+        "input_desc": "Patient's age in years (integer)",
+        "input_type": "int"
+      },
+      {
+        "input_name": "sex",
+        "input_desc": "Patient's sex, must be 'female' or 'male'",
+        "input_type": "str"
+      },
+      {
+        "input_name": "chf_history",
+        "input_desc": "Presence of congestive heart failure history (true/false)",
+        "input_type": "bool"
+      },
+      {
+        "input_name": "hypertension_history",
+        "input_desc": "Presence of hypertension history (true/false)",
+        "input_type": "bool"
+      },
+      {
+        "input_name": "stroke_history",
+        "input_desc": "Presence of stroke, TIA, or thromboembolism history (true/false)",
+        "input_type": "bool"
+      },
+      {
+        "input_name": "vascular_history",
+        "input_desc": "Presence of vascular disease history, including previous myocardial infarction, peripheral artery disease, or aortic plaque (true/false)",
+        "input_type": "bool"
+      },
+      {
+        "input_name": "diabetes_history",
+        "input_desc": "Presence of diabetes history (true/false)",
+        "input_type": "bool"
+      }
+    ],
+    "output": {
+      "output_name": "total_score",
+      "output_desc": "Final CHA2DS2-VASc score",
+      "output_type": "int",
+      "output_unit": null
+    },
+    "steps": [
+      {
+        "step_id": "1",
+        "step_name": "age_points_calculation",
+        "step_description": "Determine the points for age based on the CHA2DS2-VASc criteria: <65 years = 0, 65-74 years = 1, >=75 years = 2.",
+        "step_inputs": [
+          {
+            "input_name": "age",
+            "input_desc": "Patient's age in years",
+            "input_type": "int",
+            "input_source": "$|inputs|.age"
+          }
+        ],
+        "step_outputs": [
+          {
+            "output_name": "age_points",
+            "output_desc": "Points for age criterion",
+            "output_type": "int"
+          }
+        ],
+        "category": "ConditionEvaluation",
+        "reason": "Age is a continuous numerical value that needs to be evaluated against multiple threshold ranges to return a discrete point value, which exactly fits the ConditionEvaluation tool's purpose of classifying numerical values based on predefined ranges.",
+        "detail": "if age >= 75: points = 2; else if age >= 65: points = 1; else: points = 0."
+      },
+      {
+        "step_id": "2",
+        "step_name": "sex_points_calculation",
+        "step_description": "Determine the points for sex: female = 1 point, male = 0 points.",
+        "step_inputs": [
+          {
+            "input_name": "sex",
+            "input_desc": "Patient's sex, must be 'female' or 'male'",
+            "input_type": "str",
+            "input_source": "$|inputs|.sex"
+          }
+        ],
+        "step_outputs": [
+          {
+            "output_name": "sex_points",
+            "output_desc": "Points for sex criterion",
+            "output_type": "int"
+          }
+        ],
+        "category": "DiscreteValueMapping",
+        "reason": "Sex has a finite set of values (female, male) each mapping to a specific point value, making it a perfect fit for DiscreteValueMapping with a lookup table.",
+        "detail": "if sex is 'female': points = 1; if sex is 'male': points = 0."
+      },
+      {
+        "step_id": "3",
+        "step_name": "chf_history_points_calculation",
+        "step_description": "Determine the points for CHF history: Yes = 1 point, No = 0 points.",
+        "step_inputs": [
+          {
+            "input_name": "chf_history",
+            "input_desc": "Presence of CHF history (true/false)",
+            "input_type": "bool",
+            "input_source": "$|inputs|.chf_history"
+          }
+        ],
+        "step_outputs": [
+          {
+            "output_name": "chf_points",
+            "output_desc": "Points for CHF criterion",
+            "output_type": "int"
+          }
+        ],
+        "category": "DiscreteValueMapping",
+        "reason": "CHF history is a binary (boolean) value directly mapping to a point value, suitable for DiscreteValueMapping.",
+        "detail": "if chf_history is true: points = 1; if false: points = 0."
+      },
+      {
+        "step_id": "4",
+        "step_name": "hypertension_history_points_calculation",
+        "step_description": "Determine the points for Hypertension history: Yes = 1 point, No = 0 points.",
+        "step_inputs": [
+          {
+            "input_name": "hypertension_history",
+            "input_desc": "Presence of hypertension history (true/false)",
+            "input_type": "bool",
+            "input_source": "$|inputs|.hypertension_history"
+          }
+        ],
+        "step_outputs": [
+          {
+            "output_name": "hypertension_points",
+            "output_desc": "Points for hypertension criterion",
+            "output_type": "int"
+          }
+        ],
+        "category": "DiscreteValueMapping",
+        "reason": "Hypertension history is a binary (boolean) value directly mapping to a point value.",
+        "detail": "if hypertension_history is true: points = 1; if false: points = 0."
+      },
+      {
+        "step_id": "5",
+        "step_name": "stroke_tia_thromboembolism_points_calculation",
+        "step_description": "Determine the points for history of Stroke, TIA, or Thromboembolism: Yes = 2 points, No = 0 points.",
+        "step_inputs": [
+          {
+            "input_name": "stroke_history",
+            "input_desc": "Presence of stroke, TIA, or thromboembolism history (true/false)",
+            "input_type": "bool",
+            "input_source": "$|inputs|.stroke_history"
+          }
+        ],
+        "step_outputs": [
+          {
+            "output_name": "stroke_points",
+            "output_desc": "Points for stroke/TIA/thromboembolism criterion",
+            "output_type": "int"
+          }
+        ],
+        "category": "DiscreteValueMapping",
+        "reason": "Stroke/TIA/Thromboembolism history is a binary value mapping to a point value.",
+        "detail": "if stroke_history is true: points = 2; if false: points = 0."
+      },
+      {
+        "step_id": "6",
+        "step_name": "vascular_disease_points_calculation",
+        "step_description": "Determine the points for vascular disease history: Yes = 1 point, No = 0 points.",
+        "step_inputs": [
+          {
+            "input_name": "vascular_history",
+            "input_desc": "Presence of vascular disease history (true/false)",
+            "input_type": "bool",
+            "input_source": "$|5|.stroke_points"
+          }
+        ],
+        "step_outputs": [
+          {
+            "output_name": "vascular_points",
+            "output_desc": "Points for vascular disease criterion",
+            "output_type": "int"
+          }
+        ],
+        "category": "DiscreteValueMapping",
+        "reason": "Vascular disease history is a binary (boolean) value directly mapping to a point value, suitable for DiscreteValueMapping.",
+        "detail": "if vascular_history is true: points = 1; if false: points = 0."
+      },
+      {
+        "step_id": "7",
+        "step_name": "diabetes_points_calculation",
+        "step_description": "Determine the points for diabetes history: Yes = 1 point, No = 0 points.",
+        "step_inputs": [
+          {
+            "input_name": "diabetes_history",
+            "input_desc": "Presence of diabetes history (true/false)",
+            "input_type": "bool",
+            "input_source": "$|inputs|.diabetes_history"
+          }
+        ],
+        "step_outputs": [
+          {
+            "output_name": "diabetes_points",
+            "output_desc": "Points for diabetes criterion",
+            "output_type": "int"
+          }
+        ],
+        "category": "DiscreteValueMapping",
+        "reason": "Diabetes history is a binary (boolean) value directly mapping to a point value.",
+        "detail": "if diabetes_history is true: points = 1; if false: points = 0."
+      },
+      {
+        "step_id": "8",
+        "step_name": "cha2ds2_vasc_total_score",
+        "step_description": "Sum all individual criterion points to calculate the final CHA2DS2-VASc score.",
+        "step_inputs": [
+          {
+            "input_name": "age_points",
+            "input_desc": "Points from age criterion",
+            "input_type": "int",
+            "input_source": "$|1|.age_points"
+          },
+          {
+            "input_name": "sex_points",
+            "input_desc": "Points from sex criterion",
+            "input_type": "int",
+            "input_source": "$|2|.sex_points"
+          },
+          {
+            "input_name": "chf_points",
+            "input_desc": "Points from CHF criterion",
+            "input_type": "int",
+            "input_source": "$|3|.chf_points"
+          },
+          {
+            "input_name": "hypertension_points",
+            "input_desc": "Points from hypertension criterion",
+            "input_type": "int",
+            "input_source": "$|4|.hypertension_points"
+          },
+          {
+            "input_name": "stroke_points",
+            "input_desc": "Points from stroke/TIA/thromboembolism criterion",
+            "input_type": "int",
+            "input_source": "$|5|.stroke_points"
+          },
+          {
+            "input_name": "vascular_points",
+            "input_desc": "Points from vascular disease criterion",
+            "input_type": "int",
+            "input_source": "$|6|.vascular_points"
+          },
+          {
+            "input_name": "diabetes_points",
+            "input_desc": "Points from diabetes criterion",
+            "input_type": "int",
+            "input_source": "$|7|.diabetes_points"
+          }
+        ],
+        "step_outputs": [
+          {
+            "output_name": "total_score",
+            "output_desc": "Final CHA2DS2-VASc score",
+            "output_type": "int"
+          }
+        ],
+        "category": "FormulaCalculation",
+        "reason": "The final step is a simple summation formula of all individual criterion points, which fits the FormulaCalculation tool for performing precise arithmetic computation.",
+        "detail": "total_score = age_points + sex_points + chf_points + hypertension_points + stroke_points + vascular_points + diabetes_points."
+      }
+    ],
+    "executableCode": "def solve(age, sex, chf_history, hypertension_history, stroke_history, vascular_history, diabetes_history):\n    # Step 1: age_points_calculation - Determine the points for age based on CHA2DS2-VASc criteria\n    if age >= 75:\n        age_points = 2\n    elif age >= 65:\n        age_points = 1\n    else:\n        age_points = 0\n    yield {\n        \"step_name\": \"age_points_calculation\",\n        \"step_description\": \"Determine the points for age based on the CHA2DS2-VASc criteria: <65 years = 0, 65-74 years = 1, >=75 years = 2.\",\n        \"step_result\": age_points,\n        \"unit\": \"score\"\n    }\n    \n    # Step 2: sex_points_calculation - Determine the points for sex: female = 1, male = 0\n    if sex == 'female':\n        sex_points = 1\n    else:  # 'male'\n        sex_points = 0\n    yield {\n        \"step_name\": \"sex_points_calculation\",\n        \"step_description\": \"Determine the points for sex: female = 1 point, male = 0 points.\",\n        \"step_result\": sex_points,\n        \"unit\": \"score\"\n    }\n    \n    # Step 3: chf_history_points_calculation - Determine the points for CHF history: true = 1, false = 0\n    chf_points = 1 if chf_history else 0\n    yield {\n        \"step_name\": \"chf_history_points_calculation\",\n        \"step_description\": \"Determine the points for CHF history: Yes = 1 point, No = 0 points.\",\n        \"step_result\": chf_points,\n        \"unit\": \"score\"\n    }\n    \n    # Step 4: hypertension_history_points_calculation - Determine the points for hypertension history: true = 1, false = 0\n    hypertension_points = 1 if hypertension_history else 0\n    yield {\n        \"step_name\": \"hypertension_history_points_calculation\",\n        \"step_description\": \"Determine the points for Hypertension history: Yes = 1 point, No = 0 points.\",\n        \"step_result\": hypertension_points,\n        \"unit\": \"score\"\n    }\n    \n    # Step 5: stroke_tia_thromboembolism_points_calculation - Determine the points for stroke/TIA/thromboembolism: true = 2, false = 0\n    stroke_points = 2 if stroke_history else 0\n    yield {\n        \"step_name\": \"stroke_tia_thromboembolism_points_calculation\",\n        \"step_description\": \"Determine the points for history of Stroke, TIA, or Thromboembolism: Yes = 2 points, No = 0 points.\",\n        \"step_result\": stroke_points,\n        \"unit\": \"score\"\n    }\n    \n    # Step 6: vascular_disease_points_calculation - Determine the points for vascular disease: true = 1, false = 0\n    vascular_points = 1 if vascular_history else 0\n    yield {\n        \"step_name\": \"vascular_disease_points_calculation\",\n        \"step_description\": \"Determine the points for vascular disease history: Yes = 1 point, No = 0 points.\",\n        \"step_result\": vascular_points,\n        \"unit\": \"score\"\n    }\n    \n    # Step 7: diabetes_points_calculation - Determine the points for diabetes: true = 1, false = 0\n    diabetes_points = 1 if diabetes_history else 0\n    yield {\n        \"step_name\": \"diabetes_points_calculation\",\n        \"step_description\": \"Determine the points for diabetes history: Yes = 1 point, No = 0 points.\",\n        \"step_result\": diabetes_points,\n        \"unit\": \"score\"\n    }\n    \n    # Step 8: cha2ds2_vasc_total_score - Sum all points to get the final CHA2DS2-VASc score\n    total_score = age_points + sex_points + chf_points + hypertension_points + stroke_points + vascular_points + diabetes_points\n    yield {\n        \"step_name\": \"cha2ds2_vasc_total_score\",\n        \"step_description\": \"Sum all individual criterion points to calculate the final CHA2DS2-VASc score.\",\n        \"step_result\": total_score,\n        \"unit\": \"score\"\n    }\n    \n    return total_score"
+  },
+  {
+    "id": "06e01dbbd59e",
+    "code": "GEN-002",
+    "department": "General",
+    "reference": "Standard physiological formula: MAP = 1/3 × systolic BP + 2/3 × diastolic BP",
+    "name": "Mean Arterial Pressure (MAP)",
+    "description": "Calculate mean arterial pressure using the formula MAP = 1/3 * systolic_bp + 2/3 * diastolic_bp",
+    "inputs": [
+      {
+        "input_name": "systolic_bp",
+        "input_desc": "Systolic blood pressure value in mmHg",
+        "input_type": "float"
+      },
+      {
+        "input_name": "diastolic_bp",
+        "input_desc": "Diastolic blood pressure value in mmHg",
+        "input_type": "float"
+      }
+    ],
+    "output": {
+      "output_name": "mean_arterial_pressure",
+      "output_desc": "Calculated mean arterial pressure",
+      "output_type": "float",
+      "output_unit": "mmHg"
+    },
+    "steps": [
+      {
+        "step_id": "1",
+        "step_name": "mean_arterial_pressure_calculation",
+        "step_description": "Calculate mean arterial pressure (MAP) using the formula: MAP = 1/3 * systolic blood pressure + 2/3 * diastolic blood pressure, and round to 4 decimal places.",
+        "step_inputs": [
+          {
+            "input_name": "systolic_bp",
+            "input_desc": "Systolic blood pressure value in mmHg",
+            "input_type": "float",
+            "input_source": "$|inputs|.systolic_bp"
+          },
+          {
+            "input_name": "diastolic_bp",
+            "input_desc": "Diastolic blood pressure value in mmHg",
+            "input_type": "float",
+            "input_source": "$|inputs|.diastolic_bp"
+          }
+        ],
+        "step_outputs": [
+          {
+            "output_name": "mean_arterial_pressure",
+            "output_desc": "Calculated mean arterial pressure in mmHg",
+            "output_type": "float"
+          }
+        ],
+        "category": "FormulaCalculation",
+        "reason": "This step involves evaluating a precise mathematical formula with two numerical inputs to produce a single numerical output, which matches the FormulaCalculation tool template perfectly.",
+        "detail": "MAP = (1/3) * systolic_bp + (2/3) * diastolic_bp. Compute the weighted average using the given coefficients, and round the result to 4 decimal places."
+      }
+    ],
+    "executableCode": "def solve(systolic_bp, diastolic_bp):\n    # Step 1: mean_arterial_pressure_calculation\n    # Calculate mean arterial pressure (MAP) using the formula: MAP = 1/3 * systolic blood pressure + 2/3 * diastolic blood pressure\n    # Round the result to 4 decimal places\n    map_value = (1/3) * systolic_bp + (2/3) * diastolic_bp\n    map_value = round(map_value, 4)\n    yield {\n        \"step_name\": \"mean_arterial_pressure_calculation\",\n        \"step_description\": \"Calculate mean arterial pressure (MAP) using the formula: MAP = 1/3 * systolic blood pressure + 2/3 * diastolic blood pressure, and round to 4 decimal places.\",\n        \"step_result\": map_value,\n        \"unit\": \"mmHg\"\n    }\n    return map_value"
+  },
+  {
+    "id": "0e91e66231ef",
+    "code": "GEN-003",
+    "department": "General",
+    "reference": "World Health Organization (WHO) standard formula: weight (kg) / [height (m)]²",
+    "name": "Body Mass Index (BMI)",
+    "description": "Calculate a patient's body mass index (BMI) using weight in kilograms and height in meters.",
+    "inputs": [
+      {
+        "input_name": "weight_kg",
+        "input_desc": "Patient's weight in kilograms",
+        "input_type": "float"
+      },
+      {
+        "input_name": "height_m",
+        "input_desc": "Patient's height in meters",
+        "input_type": "float"
+      }
+    ],
+    "output": {
+      "output_name": "bmi",
+      "output_desc": "Final calculated body mass index",
+      "output_type": "float",
+      "output_unit": "kg/m^2"
+    },
+    "steps": [
+      {
+        "step_id": "1",
+        "step_name": "bmi_calculation",
+        "step_description": "Calculate the patient's body mass index using the standard formula with weight in kilograms and height in meters.",
+        "step_inputs": [
+          {
+            "input_name": "weight_kg",
+            "input_desc": "Patient's weight in kilograms",
+            "input_type": "float",
+            "input_source": "$|inputs|.weight_kg"
+          },
+          {
+            "input_name": "height_m",
+            "input_desc": "Patient's height in meters",
+            "input_type": "float",
+            "input_source": "$|inputs|.height_m"
+          }
+        ],
+        "step_outputs": [
+          {
+            "output_name": "bmi",
+            "output_desc": "Calculated body mass index rounded to 4 decimal places",
+            "output_type": "float"
+          }
+        ],
+        "category": "FormulaCalculation",
+        "reason": "This step involves applying a precise mathematical formula (weight / height squared) to compute a numerical result directly, which matches the FormulaCalculation tool template.",
+        "detail": "BMI = weight_kg / (height_m * height_m). Result is rounded to 4 decimal places."
+      }
+    ],
+    "executableCode": "def solve(weight_kg, height_m):\n    \"\"\"\n    Calculate BMI from weight in kg and height in meters\n    \"\"\"\n    # Step 1: bmi_calculation - Calculate BMI using weight_kg / (height_m^2), rounded to 4 decimal places\n    bmi = round(weight_kg / (height_m * height_m), 4)\n    \n    yield {\n        \"step_name\": \"bmi_calculation\",\n        \"step_description\": \"Calculate the patient's body mass index using the standard formula with weight in kilograms and height in meters\",\n        \"step_result\": bmi,\n        \"unit\": \"kg/m^2\"\n    }\n    \n    # Return final result\n    return bmi"
+  },
+  {
+    "id": "1498753b8390",
+    "code": "NEP-003",
+    "department": "Nephrology",
+    "reference": "Simplified Modification of Diet in Renal Disease (MDRD) Study equation (Levey AS et al., 1999)",
+    "name": "Estimated Glomerular Filtration Rate (eGFR) by MDRD",
+    "description": "Calculate estimated Glomerular Filtration Rate (GFR) using the MDRD equation based on serum creatinine, age, sex, and race.",
+    "inputs": [
+      {
+        "input_name": "creatinine",
+        "input_desc": "Serum creatinine concentration in mg/dL",
+        "input_type": "float"
+      },
+      {
+        "input_name": "age",
+        "input_desc": "Patient age in years",
+        "input_type": "int"
+      },
+      {
+        "input_name": "sex",
+        "input_desc": "Biological sex of the patient, allowed values: 'male' or 'female'",
+        "input_type": "str"
+      },
+      {
+        "input_name": "race",
+        "input_desc": "Race of the patient, allowed values: 'African American' or 'other' (defaults to 'other' if not specified)",
+        "input_type": "str"
+      }
+    ],
+    "output": {
+      "output_name": "gfr",
+      "output_desc": "Estimated Glomerular Filtration Rate calculated using the MDRD equation",
+      "output_type": "float",
+      "output_unit": "ml/min/1.73m²"
+    },
+    "steps": [
+      {
+        "step_id": "1",
+        "step_name": "gender_coefficient_determination",
+        "step_description": "Determine the gender coefficient based on the patient's sex.",
+        "step_inputs": [
+          {
+            "input_name": "sex",
+            "input_desc": "Biological sex of the patient, allowed values: 'male' or 'female'",
+            "input_type": "str",
+            "input_source": "$|inputs|.sex"
+          }
+        ],
+        "step_outputs": [
+          {
+            "output_name": "gender_coefficient",
+            "output_desc": "Gender coefficient for MDRD equation",
+            "output_type": "float"
+          }
+        ],
+        "category": "DiscreteValueMapping",
+        "reason": "Input is a finite discrete value (male/female) that maps to a predefined constant. No mathematical formula is applied; it is a direct lookup.",
+        "detail": "If sex is 'female', gender_coefficient = 0.742. If sex is 'male', gender_coefficient = 1.0."
+      },
+      {
+        "step_id": "2",
+        "step_name": "race_coefficient_determination",
+        "step_description": "Determine the race coefficient for the MDRD equation. Defaults to 1.0 if race is not specified or is non-Black.",
+        "step_inputs": [
+          {
+            "input_name": "race",
+            "input_desc": "Race of the patient, allowed values: 'African American' or 'other'",
+            "input_type": "str",
+            "input_source": "$|inputs|.race"
+          }
+        ],
+        "step_outputs": [
+          {
+            "output_name": "race_coefficient",
+            "output_desc": "Race coefficient for MDRD equation",
+            "output_type": "float"
+          }
+        ],
+        "category": "DiscreteValueMapping",
+        "reason": "Input is a categorical variable with two possible outcomes. This is a simple mapping, not a continuous threshold or complex formula.",
+        "detail": "If race is 'African American', race_coefficient = 1.212. Otherwise (including if not mentioned or is 'other'), race_coefficient = 1.0."
+      },
+      {
+        "step_id": "3",
+        "step_name": "mdrd_gfr_calculation",
+        "step_description": "Calculate the estimated GFR using the MDRD equation.",
+        "step_inputs": [
+          {
+            "input_name": "creatinine",
+            "input_desc": "Serum creatinine concentration in mg/dL",
+            "input_type": "float",
+            "input_source": "$|inputs|.creatinine"
+          },
+          {
+            "input_name": "age",
+            "input_desc": "Patient age in years",
+            "input_type": "int",
+            "input_source": "$|inputs|.age"
+          },
+          {
+            "input_name": "race_coefficient",
+            "input_desc": "Race coefficient from step 2",
+            "input_type": "float",
+            "input_source": "$|2|.race_coefficient"
+          },
+          {
+            "input_name": "gender_coefficient",
+            "input_desc": "Gender coefficient from step 1",
+            "input_type": "float",
+            "input_source": "$|1|.gender_coefficient"
+          }
+        ],
+        "step_outputs": [
+          {
+            "output_name": "gfr",
+            "output_desc": "Estimated Glomerular Filtration Rate in ml/min/1.73m²",
+            "output_type": "float"
+          }
+        ],
+        "category": "FormulaCalculation",
+        "reason": "This step involves applying a specific mathematical formula with exponential terms. It requires precise numerical computation of the provided equation.",
+        "detail": "GFR = 175 * (creatinine ^ -1.154) * (age ^ -0.203) * race_coefficient * gender_coefficient"
+      }
+    ],
+    "executableCode": "import math\n\ndef solve(creatinine, age, sex, race):\n    # Step 1: gender_coefficient_determination\n    # Determine the gender coefficient based on the patient's sex.\n    if sex == 'female':\n        gender_coefficient = 0.742\n    elif sex == 'male':\n        gender_coefficient = 1.0\n    else:\n        raise ValueError(\"sex must be 'male' or 'female'\")\n    \n    yield {\n        \"step_name\": \"gender_coefficient_determination\",\n        \"step_description\": \"Determine the gender coefficient based on the patient's sex.\",\n        \"step_result\": gender_coefficient,\n        \"unit\": \"score\"\n    }\n    \n    # Step 2: race_coefficient_determination\n    # Determine the race coefficient for the MDRD equation.\n    if race == 'African American':\n        race_coefficient = 1.212\n    else:\n        race_coefficient = 1.0\n    \n    yield {\n        \"step_name\": \"race_coefficient_determination\",\n        \"step_description\": \"Determine the race coefficient for the MDRD equation. Defaults to 1.0 if race is not specified or is non-Black.\",\n        \"step_result\": race_coefficient,\n        \"unit\": \"score\"\n    }\n    \n    # Step 3: mdrd_gfr_calculation\n    # Calculate the estimated GFR using the MDRD equation.\n    gfr = 175 * math.pow(creatinine, -1.154) * math.pow(age, -0.203) * race_coefficient * gender_coefficient\n    \n    yield {\n        \"step_name\": \"mdrd_gfr_calculation\",\n        \"step_description\": \"Calculate the estimated GFR using the MDRD equation.\",\n        \"step_result\": gfr,\n        \"unit\": \"ml/min/1.73m²\"\n    }\n    \n    return gfr"
+  },
+  {
+    "id": "3ff0777b6ed7",
+    "code": "GEN-004",
+    "department": "General",
+    "reference": "Devine Formula (1974) for calculating Ideal Body Weight based on height, commonly used in clinical nutrition and pharmacology.",
+    "name": "Ideal Body Weight (IBW)",
+    "description": "Calculate Ideal Body Weight (IBW) based on gender and height in inches using the Devine formula.",
+    "inputs": [
+      {
+        "input_name": "gender",
+        "input_desc": "Patient's biological sex. Allowed values: 'male', 'female'.",
+        "input_type": "str"
+      },
+      {
+        "input_name": "height_inches",
+        "input_desc": "Patient's height in inches.",
+        "input_type": "float"
+      }
+    ],
+    "output": {
+      "output_name": "ibw_kg",
+      "output_desc": "Ideal body weight in kilograms.",
+      "output_type": "float",
+      "output_unit": "kg"
+    },
+    "steps": [
+      {
+        "step_id": "1",
+        "step_name": "calculate_ibw",
+        "step_description": "Calculate Ideal Body Weight (IBW) based on gender and height in inches using the Devine formula.",
+        "step_inputs": [
+          {
+            "input_name": "gender",
+            "input_desc": "Patient's biological sex. Allowed values: 'male', 'female'.",
+            "input_type": "str",
+            "input_source": "$|inputs|.gender"
+          },
+          {
+            "input_name": "height_inches",
+            "input_desc": "Patient's height in inches.",
+            "input_type": "float",
+            "input_source": "$|inputs|.height_inches"
+          }
+        ],
+        "step_outputs": [
+          {
+            "output_name": "ibw_kg",
+            "output_desc": "Ideal body weight in kilograms.",
+            "output_type": "float"
+          }
+        ],
+        "category": "ConditionEvaluation",
+        "reason": "The calculation requires selecting one of two distinct formulas based on the categorical input 'gender' (male or female). This conditional branching maps directly to the ConditionEvaluation tool pattern, which evaluates discrete conditions to determine the appropriate output rule, rather than applying a single unconditional formula.",
+        "detail": "IBW (kg) = 50 + 2.3 * (height_inches - 60) for males; IBW (kg) = 45.5 + 2.3 * (height_inches - 60) for females."
+      }
+    ],
+    "executableCode": "def solve(gender, height_inches):\n    # Step 1: Calculate Ideal Body Weight (IBW) based on gender and height in inches using the Devine formula\n    if gender == 'male':\n        ibw_kg = 50 + 2.3 * (height_inches - 60)\n    elif gender == 'female':\n        ibw_kg = 45.5 + 2.3 * (height_inches - 60)\n    else:\n        raise ValueError(\"gender must be 'male' or 'female'\")\n    \n    yield {\n        \"step_name\": \"calculate_ibw\",\n        \"step_description\": \"Calculate Ideal Body Weight (IBW) based on gender and height in inches using the Devine formula.\",\n        \"step_result\": ibw_kg,\n        \"unit\": \"kg\"\n    }\n    \n    return ibw_kg"
+  },
+  {
+    "id": "10bc08829c93",
+    "code": "CAR-002",
+    "department": "Cardiology",
+    "reference": "Bazett HC. An analysis of the time-relations of electrocardiograms. Heart. 1920;7:353-370.",
+    "name": "Corrected QT Interval (QTc)",
+    "description": "Calculate the corrected QT interval (QTc) using the Bazett formula based on heart rate and QT interval.",
+    "inputs": [
+      {
+        "input_name": "heart_rate",
+        "input_desc": "Heart rate in beats per minute (bpm)",
+        "input_type": "float"
+      },
+      {
+        "input_name": "qt_interval",
+        "input_desc": "QT interval in milliseconds (msec)",
+        "input_type": "float"
+      }
+    ],
+    "output": {
+      "output_name": "qtc",
+      "output_desc": "Corrected QT interval calculated using the Bazett formula",
+      "output_type": "float",
+      "output_unit": "msec"
+    },
+    "steps": [
+      {
+        "step_id": "1",
+        "step_name": "rr_interval_calculation",
+        "step_description": "Calculate the RR interval in seconds from the heart rate using the formula: RR interval = 60 / heart rate.",
+        "step_inputs": [
+          {
+            "input_name": "heart_rate",
+            "input_desc": "Heart rate in beats per minute (bpm)",
+            "input_type": "float",
+            "input_source": "$|inputs|.heart_rate"
+          }
+        ],
+        "step_outputs": [
+          {
+            "output_name": "rr_interval",
+            "output_desc": "RR interval in seconds",
+            "output_type": "float"
+          }
+        ],
+        "category": "FormulaCalculation",
+        "reason": "This step involves a clear mathematical formula (division) requiring precise numerical computation.",
+        "detail": "Compute the RR interval in seconds using the formula: RR interval = 60 / heart_rate. For example, if heart rate is 75 bpm, RR interval = 60 / 75 = 0.8 seconds."
+      },
+      {
+        "step_id": "2",
+        "step_name": "qtc_interval_calculation",
+        "step_description": "Calculate the corrected QT interval (QTc) using the Bazett formula: QTc = QT_interval / sqrt(RR_interval).",
+        "step_inputs": [
+          {
+            "input_name": "qt_interval",
+            "input_desc": "QT interval in milliseconds (msec)",
+            "input_type": "float",
+            "input_source": "$|inputs|.qt_interval"
+          },
+          {
+            "input_name": "rr_interval",
+            "input_desc": "RR interval in seconds",
+            "input_type": "float",
+            "input_source": "$|1|.rr_interval"
+          }
+        ],
+        "step_outputs": [
+          {
+            "output_name": "qtc",
+            "output_desc": "Corrected QT interval in milliseconds (msec)",
+            "output_type": "float"
+          }
+        ],
+        "category": "FormulaCalculation",
+        "reason": "This step involves a precise mathematical formula with square root operation, fitting complex numerical computation.",
+        "detail": "Calculate the QTc interval using the Bazett formula: QTc = qt_interval / sqrt(rr_interval). Both input values are numeric; the square root function is applied to the RR interval. The result is the corrected QT interval in milliseconds. For example, if QT = 400 ms and RR = 0.8 s, QTc = 400 / sqrt(0.8) ≈ 447.21 ms."
+      }
+    ],
+    "executableCode": "import math\n\ndef solve(heart_rate, qt_interval):\n    \"\"\"\n    Calculate the corrected QT interval (QTc) using the Bazett formula.\n    \n    Parameters:\n        heart_rate (float): Heart rate in beats per minute (bpm)\n        qt_interval (float): QT interval in milliseconds (msec)\n    \n    Returns:\n        float: Corrected QT interval in milliseconds (msec)\n    \"\"\"\n    # Step 1: Calculate RR interval from heart rate\n    # RR interval (in seconds) = 60 / heart_rate\n    rr_interval = 60.0 / heart_rate\n    \n    yield {\n        \"step_name\": \"rr_interval_calculation\",\n        \"step_description\": \"Calculate the RR interval in seconds from the heart rate using the formula: RR interval = 60 / heart rate.\",\n        \"step_result\": rr_interval,\n        \"unit\": \"sec\"\n    }\n    \n    # Step 2: Calculate QTc using Bazett formula\n    # QTc = qt_interval / sqrt(rr_interval)\n    qtc = qt_interval / math.sqrt(rr_interval)\n    \n    yield {\n        \"step_name\": \"qtc_interval_calculation\",\n        \"step_description\": \"Calculate the corrected QT interval (QTc) using the Bazett formula: QTc = QT_interval / sqrt(RR_interval).\",\n        \"step_result\": qtc,\n        \"unit\": \"msec\"\n    }\n    \n    # Return final QTc\n    return qtc"
+  },
+  {
+    "id": "12c2c63f3d40",
+    "code": "GAS-001",
+    "department": "Gastroenterology",
+    "reference": "Child CG, Turcotte JG. Surgery and portal hypertension. Major Probl Clin Surg. 1964. Modified by Pugh RN et al. Br J Surg. 1973.",
+    "name": "Child-Pugh Score (CPS)",
+    "description": "Calculate the Child-Pugh score by assigning points for five clinical criteria (bilirubin, albumin, INR, ascites, encephalopathy) and summing them.",
+    "inputs": [
+      {
+        "input_name": "bilirubin_total_mg_dl",
+        "input_desc": "Total bilirubin level in mg/dL",
+        "input_type": "float"
+      },
+      {
+        "input_name": "albumin_g_dl",
+        "input_desc": "Serum albumin level in g/dL",
+        "input_type": "float"
+      },
+      {
+        "input_name": "inr",
+        "input_desc": "International Normalized Ratio value",
+        "input_type": "float"
+      },
+      {
+        "input_name": "ascites_severity",
+        "input_desc": "Severity of ascites. Allowed values: 'Absent', 'Slight', 'Moderate'",
+        "input_type": "str"
+      },
+      {
+        "input_name": "encephalopathy_grade",
+        "input_desc": "Grade of hepatic encephalopathy. Allowed values: 'None', 'Grade 1-2', 'Grade 3-4'",
+        "input_type": "str"
+      }
+    ],
+    "output": {
+      "output_name": "child_pugh_score",
+      "output_desc": "Total Child-Pugh score, calculated by summing points from bilirubin, albumin, INR, ascites, and encephalopathy criteria.",
+      "output_type": "int",
+      "output_unit": null
+    },
+    "steps": [
+      {
+        "step_id": "1",
+        "step_name": "bilirubin_points",
+        "step_description": "Assign points based on total bilirubin value in mg/dL.",
+        "step_inputs": [
+          {
+            "input_name": "bilirubin_total_mg_dl",
+            "input_desc": "Total bilirubin level in mg/dL",
+            "input_type": "float",
+            "input_source": "$|inputs|.bilirubin_total_mg_dl"
+          }
+        ],
+        "step_outputs": [
+          {
+            "output_name": "bilirubin_points",
+            "output_desc": "Points assigned for bilirubin criterion (1, 2, or 3)",
+            "output_type": "int"
+          }
+        ],
+        "category": "ThresholdMapping",
+        "reason": "This step maps a continuous numerical value (bilirubin level) to discrete point categories based on predefined thresholds.",
+        "detail": "If bilirubin_total_mg_dl < 2, assign 1 point. If 2 <= bilirubin_total_mg_dl <= 3, assign 2 points. If bilirubin_total_mg_dl > 3, assign 3 points."
+      },
+      {
+        "step_id": "2",
+        "step_name": "albumin_points",
+        "step_description": "Assign points based on albumin level in g/dL.",
+        "step_inputs": [
+          {
+            "input_name": "albumin_g_dl",
+            "input_desc": "Serum albumin level in g/dL",
+            "input_type": "float",
+            "input_source": "$|inputs|.albumin_g_dl"
+          }
+        ],
+        "step_outputs": [
+          {
+            "output_name": "albumin_points",
+            "output_desc": "Points assigned for albumin criterion (1, 2, or 3)",
+            "output_type": "int"
+          }
+        ],
+        "category": "ThresholdMapping",
+        "reason": "This step maps a continuous numerical value (albumin level) to discrete point categories based on predefined thresholds.",
+        "detail": "If albumin_g_dl > 3.5, assign 1 point. If 2.8 <= albumin_g_dl <= 3.5, assign 2 points. If albumin_g_dl < 2.8, assign 3 points."
+      },
+      {
+        "step_id": "3",
+        "step_name": "inr_points",
+        "step_description": "Assign points based on International Normalized Ratio (INR).",
+        "step_inputs": [
+          {
+            "input_name": "inr",
+            "input_desc": "International Normalized Ratio value",
+            "input_type": "float",
+            "input_source": "$|inputs|.inr"
+          }
+        ],
+        "step_outputs": [
+          {
+            "output_name": "inr_points",
+            "output_desc": "Points assigned for INR criterion (1, 2, or 3)",
+            "output_type": "int"
+          }
+        ],
+        "category": "ThresholdMapping",
+        "reason": "This step maps a continuous numerical value (INR) to discrete point categories based on predefined thresholds.",
+        "detail": "If inr < 1.7, assign 1 point. If 1.7 <= inr <= 2.3, assign 2 points. If inr > 2.3, assign 3 points."
+      },
+      {
+        "step_id": "4",
+        "step_name": "ascites_points",
+        "step_description": "Assign points based on ascites severity.",
+        "step_inputs": [
+          {
+            "input_name": "ascites_severity",
+            "input_desc": "Severity of ascites. Allowed values: 'Absent', 'Slight', 'Moderate'",
+            "input_type": "str",
+            "input_source": "$|inputs|.ascites_severity"
+          }
+        ],
+        "step_outputs": [
+          {
+            "output_name": "ascites_points",
+            "output_desc": "Points assigned for ascites criterion (1, 2, or 3)",
+            "output_type": "int"
+          }
+        ],
+        "category": "DiscreteValueMapping",
+        "reason": "This step maps a finite set of discrete severity strings to corresponding point values using a lookup table.",
+        "detail": "Mapping: 'Absent' -> 1 point, 'Slight' -> 2 points, 'Moderate' -> 3 points."
+      },
+      {
+        "step_id": "5",
+        "step_name": "encephalopathy_points",
+        "step_description": "Assign points based on hepatic encephalopathy grade.",
+        "step_inputs": [
+          {
+            "input_name": "encephalopathy_grade",
+            "input_desc": "Grade of hepatic encephalopathy. Allowed values: 'None', 'Grade 1-2', 'Grade 3-4'",
+            "input_type": "str",
+            "input_source": "$|inputs|.encephalopathy_grade"
+          }
+        ],
+        "step_outputs": [
+          {
+            "output_name": "encephalopathy_points",
+            "output_desc": "Points assigned for encephalopathy criterion (1, 2, or 3)",
+            "output_type": "int"
+          }
+        ],
+        "category": "DiscreteValueMapping",
+        "reason": "This step maps a finite set of discrete grade strings to corresponding point values using a lookup table.",
+        "detail": "Mapping: 'None' -> 1 point, 'Grade 1-2' -> 2 points, 'Grade 3-4' -> 3 points."
+      },
+      {
+        "step_id": "6",
+        "step_name": "total_child_pugh_score",
+        "step_description": "Sum all individual criterion points to calculate the final Child-Pugh score.",
+        "step_inputs": [
+          {
+            "input_name": "bilirubin_points",
+            "input_desc": "Points from bilirubin criterion",
+            "input_type": "int",
+            "input_source": "$|1|.bilirubin_points"
+          },
+          {
+            "input_name": "albumin_points",
+            "input_desc": "Points from albumin criterion",
+            "input_type": "int",
+            "input_source": "$|2|.albumin_points"
+          },
+          {
+            "input_name": "inr_points",
+            "input_desc": "Points from INR criterion",
+            "input_type": "int",
+            "input_source": "$|3|.inr_points"
+          },
+          {
+            "input_name": "ascites_points",
+            "input_desc": "Points from ascites criterion",
+            "input_type": "int",
+            "input_source": "$|4|.ascites_points"
+          },
+          {
+            "input_name": "encephalopathy_points",
+            "input_desc": "Points from encephalopathy criterion",
+            "input_type": "int",
+            "input_source": "$|5|.encephalopathy_points"
+          }
+        ],
+        "step_outputs": [
+          {
+            "output_name": "child_pugh_score",
+            "output_desc": "Total Child-Pugh score (sum of all criterion points)",
+            "output_type": "int"
+          }
+        ],
+        "category": "FormulaCalculation",
+        "reason": "This step performs a simple summation formula to combine the points from all criteria into the final score.",
+        "detail": "child_pugh_score = bilirubin_points + albumin_points + inr_points + ascites_points + encephalopathy_points"
+      }
+    ],
+    "executableCode": "def solve(bilirubin_total_mg_dl, albumin_g_dl, inr, ascites_severity, encephalopathy_grade):\n    # Step 1: bilirubin_points\n    # Assign points based on total bilirubin value in mg/dL.\n    if bilirubin_total_mg_dl < 2:\n        bilirubin_points = 1\n    elif 2 <= bilirubin_total_mg_dl <= 3:\n        bilirubin_points = 2\n    else:  # bilirubin_total_mg_dl > 3\n        bilirubin_points = 3\n    yield {\n        \"step_name\": \"bilirubin_points\",\n        \"step_description\": \"Assign points based on total bilirubin value in mg/dL.\",\n        \"step_result\": bilirubin_points,\n        \"unit\": \"score\"\n    }\n\n    # Step 2: albumin_points\n    # Assign points based on albumin level in g/dL.\n    if albumin_g_dl > 3.5:\n        albumin_points = 1\n    elif 2.8 <= albumin_g_dl <= 3.5:\n        albumin_points = 2\n    else:  # albumin_g_dl < 2.8\n        albumin_points = 3\n    yield {\n        \"step_name\": \"albumin_points\",\n        \"step_description\": \"Assign points based on albumin level in g/dL.\",\n        \"step_result\": albumin_points,\n        \"unit\": \"score\"\n    }\n\n    # Step 3: inr_points\n    # Assign points based on International Normalized Ratio (INR).\n    if inr < 1.7:\n        inr_points = 1\n    elif 1.7 <= inr <= 2.3:\n        inr_points = 2\n    else:  # inr > 2.3\n        inr_points = 3\n    yield {\n        \"step_name\": \"inr_points\",\n        \"step_description\": \"Assign points based on International Normalized Ratio (INR).\",\n        \"step_result\": inr_points,\n        \"unit\": \"score\"\n    }\n\n    # Step 4: ascites_points\n    # Assign points based on ascites severity.\n    ascites_mapping = {\n        'Absent': 1,\n        'Slight': 2,\n        'Moderate': 3\n    }\n    ascites_points = ascites_mapping[ascites_severity]\n    yield {\n        \"step_name\": \"ascites_points\",\n        \"step_description\": \"Assign points based on ascites severity.\",\n        \"step_result\": ascites_points,\n        \"unit\": \"score\"\n    }\n\n    # Step 5: encephalopathy_points\n    # Assign points based on hepatic encephalopathy grade.\n    encephalopathy_mapping = {\n        'None': 1,\n        'Grade 1-2': 2,\n        'Grade 3-4': 3\n    }\n    encephalopathy_points = encephalopathy_mapping[encephalopathy_grade]\n    yield {\n        \"step_name\": \"encephalopathy_points\",\n        \"step_description\": \"Assign points based on hepatic encephalopathy grade.\",\n        \"step_result\": encephalopathy_points,\n        \"unit\": \"score\"\n    }\n\n    # Step 6: total_child_pugh_score\n    # Sum all individual criterion points to calculate the final Child-Pugh score.\n    child_pugh_score = bilirubin_points + albumin_points + inr_points + ascites_points + encephalopathy_points\n    yield {\n        \"step_name\": \"total_child_pugh_score\",\n        \"step_description\": \"Sum all individual criterion points to calculate the final Child-Pugh score.\",\n        \"step_result\": child_pugh_score,\n        \"unit\": \"score\"\n    }\n\n    return child_pugh_score"
+  },
+  {
+    "id": "069e12503a51",
+    "code": "CAR-003",
+    "department": "Cardiology",
+    "reference": "Wells PS et al. Evaluation of D-dimer in the diagnosis of suspected deep-vein thrombosis. N Engl J Med. 2003;349(13):1227-35.",
+    "name": "Wells' Criteria for Deep Vein Thrombosis (Wells DVT Score)",
+    "description": "Calculate the total Wells' Criteria for Deep Vein Thrombosis (DVT) score by summing the points for each of the 10 clinical criteria based on their presence or absence.",
+    "inputs": [
+      {
+        "input_name": "active_cancer",
+        "input_desc": "Active cancer (treatment or palliation within 6 months). True if present, False if absent.",
+        "input_type": "bool"
+      },
+      {
+        "input_name": "bedridden_or_surgery",
+        "input_desc": "Bedridden recently >3 days or major surgery within 12 weeks. True if present, False if absent.",
+        "input_type": "bool"
+      },
+      {
+        "input_name": "calf_swelling",
+        "input_desc": "Calf swelling >3 cm compared to the other leg (measured 10 cm below tibial tuberosity). True if present, False if absent.",
+        "input_type": "bool"
+      },
+      {
+        "input_name": "collateral_veins",
+        "input_desc": "Collateral (nonvaricose) superficial veins present. True if present, False if absent.",
+        "input_type": "bool"
+      },
+      {
+        "input_name": "entire_leg_swollen",
+        "input_desc": "Entire leg swollen. True if present, False if absent.",
+        "input_type": "bool"
+      },
+      {
+        "input_name": "localized_tenderness",
+        "input_desc": "Localized tenderness along the deep venous system. True if present, False if absent.",
+        "input_type": "bool"
+      },
+      {
+        "input_name": "pitting_edema",
+        "input_desc": "Pitting edema, confined to symptomatic leg. True if present, False if absent.",
+        "input_type": "bool"
+      },
+      {
+        "input_name": "paralysis_or_immobilization",
+        "input_desc": "Paralysis, paresis, or recent plaster immobilization of the lower extremity. True if present, False if absent.",
+        "input_type": "bool"
+      },
+      {
+        "input_name": "previous_dvt",
+        "input_desc": "Previously documented DVT. True if present, False if absent.",
+        "input_type": "bool"
+      },
+      {
+        "input_name": "alternative_diagnosis",
+        "input_desc": "Alternative diagnosis to DVT as likely or more likely. True if present, False if absent.",
+        "input_type": "bool"
+      }
+    ],
+    "output": {
+      "output_name": "total_score",
+      "output_desc": "Total Wells DVT score, calculated as the sum of points from all criteria.",
+      "output_type": "int",
+      "output_unit": null
+    },
+    "steps": [
+      {
+        "step_id": "1",
+        "step_name": "compute_wells_dvt_score",
+        "step_description": "Sum the points for each of the 10 clinical criteria based on their presence (True) or absence (False).",
+        "step_inputs": [
+          {
+            "input_name": "active_cancer",
+            "input_desc": "Active cancer (treatment or palliation within 6 months). True if present, False if absent.",
+            "input_type": "bool",
+            "input_source": "$|inputs|.active_cancer"
+          },
+          {
+            "input_name": "bedridden_or_surgery",
+            "input_desc": "Bedridden recently >3 days or major surgery within 12 weeks. True if present, False if absent.",
+            "input_type": "bool",
+            "input_source": "$|inputs|.bedridden_or_surgery"
+          },
+          {
+            "input_name": "calf_swelling",
+            "input_desc": "Calf swelling >3 cm compared to the other leg (measured 10 cm below tibial tuberosity). True if present, False if absent.",
+            "input_type": "bool",
+            "input_source": "$|inputs|.calf_swelling"
+          },
+          {
+            "input_name": "collateral_veins",
+            "input_desc": "Collateral (nonvaricose) superficial veins present. True if present, False if absent.",
+            "input_type": "bool",
+            "input_source": "$|inputs|.collateral_veins"
+          },
+          {
+            "input_name": "entire_leg_swollen",
+            "input_desc": "Entire leg swollen. True if present, False if absent.",
+            "input_type": "bool",
+            "input_source": "$|inputs|.entire_leg_swollen"
+          },
+          {
+            "input_name": "localized_tenderness",
+            "input_desc": "Localized tenderness along the deep venous system. True if present, False if absent.",
+            "input_type": "bool",
+            "input_source": "$|inputs|.localized_tenderness"
+          },
+          {
+            "input_name": "pitting_edema",
+            "input_desc": "Pitting edema, confined to symptomatic leg. True if present, False if absent.",
+            "input_type": "bool",
+            "input_source": "$|inputs|.pitting_edema"
+          },
+          {
+            "input_name": "paralysis_or_immobilization",
+            "input_desc": "Paralysis, paresis, or recent plaster immobilization of the lower extremity. True if present, False if absent.",
+            "input_type": "bool",
+            "input_source": "$|inputs|.paralysis_or_immobilization"
+          },
+          {
+            "input_name": "previous_dvt",
+            "input_desc": "Previously documented DVT. True if present, False if absent.",
+            "input_type": "bool",
+            "input_source": "$|inputs|.previous_dvt"
+          },
+          {
+            "input_name": "alternative_diagnosis",
+            "input_desc": "Alternative diagnosis to DVT as likely or more likely. True if present, False if absent.",
+            "input_type": "bool",
+            "input_source": "$|inputs|.alternative_diagnosis"
+          }
+        ],
+        "step_outputs": [
+          {
+            "output_name": "total_score",
+            "output_desc": "Total Wells DVT score, calculated as the sum of points from all criteria.",
+            "output_type": "int"
+          }
+        ],
+        "category": "FormulaCalculation",
+        "reason": "The calculation requires summing numerical point values derived from boolean inputs (each yes/no criterion maps to a specific integer: 0/+1 or 0/-2). This is a straightforward arithmetic summation of 10 integer terms, making it a precise numerical formula computation. No conditional branching or lookup tables are needed for the summation itself.",
+        "detail": "Score is calculated by summing the points for each criterion: Active cancer (+1 if yes), Bedridden recently >3 days or major surgery within 12 weeks (+1 if yes), Calf swelling >3 cm (+1 if yes), Collateral superficial veins present (+1 if yes), Entire leg swollen (+1 if yes), Localized tenderness along deep venous system (+1 if yes), Pitting edema confined to symptomatic leg (+1 if yes), Paralysis/paresis/plaster immobilization (+1 if yes), Previously documented DVT (+1 if yes), Alternative diagnosis to DVT as likely or more likely (-2 if yes). Each criterion contributes 0 points if condition is absent. Total score = sum of all 10 criterion points."
+      }
+    ],
+    "executableCode": "def solve(active_cancer, bedridden_or_surgery, calf_swelling, collateral_veins, entire_leg_swollen, localized_tenderness, pitting_edema, paralysis_or_immobilization, previous_dvt, alternative_diagnosis):\n    # Step 1: compute_wells_dvt_score\n    # Sum the points for each of the 10 clinical criteria based on their presence (True) or absence (False).\n    # Each criterion: True -> assigned points, False -> 0 points.\n    # Points mapping:\n    #   active_cancer +1\n    #   bedridden_or_surgery +1\n    #   calf_swelling +1\n    #   collateral_veins +1\n    #   entire_leg_swollen +1\n    #   localized_tenderness +1\n    #   pitting_edema +1\n    #   paralysis_or_immobilization +1\n    #   previous_dvt +1\n    #   alternative_diagnosis -2\n    total_score = 0\n    if active_cancer:\n        total_score += 1\n    if bedridden_or_surgery:\n        total_score += 1\n    if calf_swelling:\n        total_score += 1\n    if collateral_veins:\n        total_score += 1\n    if entire_leg_swollen:\n        total_score += 1\n    if localized_tenderness:\n        total_score += 1\n    if pitting_edema:\n        total_score += 1\n    if paralysis_or_immobilization:\n        total_score += 1\n    if previous_dvt:\n        total_score += 1\n    if alternative_diagnosis:\n        total_score -= 2\n\n    yield {\n        \"step_name\": \"compute_wells_dvt_score\",\n        \"step_description\": \"Sum the points for each of the 10 clinical criteria based on their presence (True) or absence (False). Points: active_cancer (+1 if True), bedridden_or_surgery (+1), calf_swelling (+1), collateral_veins (+1), entire_leg_swollen (+1), localized_tenderness (+1), pitting_edema (+1), paralysis_or_immobilization (+1), previous_dvt (+1), alternative_diagnosis (-2 if True).\",\n        \"step_result\": total_score,\n        \"unit\": \"score\"\n    }\n\n    return total_score"
+  },
+  {
+    "id": "c0be4adbc87d",
+    "code": "GEN-005",
+    "department": "General",
+    "reference": "Holliday-Segar 4-2-1 Rule (Pediatrics, 1957)",
+    "name": "Maintenance Fluid Rate (4-2-1 Rule)",
+    "description": "Calculate maintenance fluid rate (mL/hr) based on patient weight using the Holliday-Segar method for three weight ranges.",
+    "inputs": [
+      {
+        "input_name": "weight_kg",
+        "input_desc": "Patient weight in kilograms",
+        "input_type": "float"
+      }
+    ],
+    "output": {
+      "output_name": "maintenance_fluid_rate",
+      "output_desc": "Maintenance fluid rate in mL per hour",
+      "output_type": "float",
+      "output_unit": "mL/hr"
+    },
+    "steps": [
+      {
+        "step_id": "1",
+        "step_name": "calculate_maintenance_fluid",
+        "step_description": "Calculate maintenance fluid rate (mL/hr) based on patient weight using conditional evaluation for three weight ranges.",
+        "step_inputs": [
+          {
+            "input_name": "weight_kg",
+            "input_desc": "Patient weight in kilograms",
+            "input_type": "float",
+            "input_source": "$|inputs|.weight_kg"
+          }
+        ],
+        "step_outputs": [
+          {
+            "output_name": "maintenance_fluid_rate",
+            "output_desc": "Maintenance fluid rate in mL per hour",
+            "output_type": "float"
+          }
+        ],
+        "category": "ConditionEvaluation",
+        "reason": "The calculation requires evaluating a condition based on the weight value and applying one of three distinct formulas. This fits the ConditionEvaluation category which handles classification and graded formula selection based on numerical thresholds.",
+        "detail": "If weight ≤ 10 kg: maintenance_fluid_rate = 4 * weight_kg. If 11 kg ≤ weight ≤ 20 kg: maintenance_fluid_rate = 40 + 2 * (weight_kg - 10). If weight > 20 kg: maintenance_fluid_rate = 60 + 1 * (weight_kg - 20). Round result to 4 decimal places if needed."
+      }
+    ],
+    "executableCode": "def solve(weight_kg):\n    # step 1: calculate_maintenance_fluid\n    # Calculate maintenance fluid rate (mL/hr) based on patient weight using conditional evaluation for three weight ranges.\n    if weight_kg <= 10:\n        maintenance_fluid_rate = 4 * weight_kg\n    elif weight_kg <= 20:\n        maintenance_fluid_rate = 40 + 2 * (weight_kg - 10)\n    else:\n        maintenance_fluid_rate = 60 + 1 * (weight_kg - 20)\n    \n    # Round result to 4 decimal places if needed\n    maintenance_fluid_rate = round(maintenance_fluid_rate, 4)\n    \n    yield {\n        \"step_name\": \"calculate_maintenance_fluid\",\n        \"step_description\": \"Calculate maintenance fluid rate (mL/hr) based on patient weight using conditional evaluation for three weight ranges.\",\n        \"step_result\": maintenance_fluid_rate,\n        \"unit\": \"mL/hr\"\n    }\n    \n    return maintenance_fluid_rate"
+  },
+  {
+    "id": "3dfef67272a1",
+    "code": "GAS-002",
+    "department": "Gastroenterology",
+    "reference": "OPTN/UNOS policy based on Kim et al., NEJM 2008 (MELD-Na = MELD(i) + 1.32*(137-Na) - 0.033*MELD(i)*(137-Na))",
+    "name": "Model for End-Stage Liver Disease Sodium (MELD-Na)",
+    "description": "Calculate the MELD Na score using serum creatinine, bilirubin, INR, and sodium values according to the standard MELD Na formula with threshold and capping rules.",
+    "inputs": [
+      {
+        "input_name": "cr",
+        "input_desc": "Serum creatinine concentration in mg/dL",
+        "input_type": "float"
+      },
+      {
+        "input_name": "bilirubin",
+        "input_desc": "Serum bilirubin concentration in mg/dL",
+        "input_type": "float"
+      },
+      {
+        "input_name": "inr",
+        "input_desc": "International Normalized Ratio (unitless)",
+        "input_type": "float"
+      },
+      {
+        "input_name": "na",
+        "input_desc": "Serum sodium concentration in mEq/L",
+        "input_type": "float"
+      }
+    ],
+    "output": {
+      "output_name": "meld_na_final",
+      "output_desc": "Final MELD Na score, an integer between 6 and 40",
+      "output_type": "int",
+      "output_unit": null
+    },
+    "steps": [
+      {
+        "step_id": "1",
+        "step_name": "meldi_calculation",
+        "step_description": "Calculate the initial MELD(i) score using the formula: 0.957 * ln(Cr) + 0.378 * ln(bilirubin) + 1.120 * ln(INR) + 0.643. If any input is less than 1.0, set it to 1.0 before calculation.",
+        "step_inputs": [
+          {
+            "input_name": "cr",
+            "input_desc": "Serum creatinine in mg/dL",
+            "input_type": "float",
+            "input_source": "$|inputs|.cr"
+          },
+          {
+            "input_name": "bilirubin",
+            "input_desc": "Serum bilirubin in mg/dL",
+            "input_type": "float",
+            "input_source": "$|inputs|.bilirubin"
+          },
+          {
+            "input_name": "inr",
+            "input_desc": "International Normalized Ratio",
+            "input_type": "float",
+            "input_source": "$|inputs|.inr"
+          }
+        ],
+        "step_outputs": [
+          {
+            "output_name": "meldi",
+            "output_desc": "Raw initial MELD score",
+            "output_type": "float"
+          }
+        ],
+        "category": "FormulaCalculation",
+        "reason": "This step computes a precise numerical value using a defined mathematical formula involving logarithms and arithmetic operations.",
+        "detail": "MELDi = 0.957 * ln(max(Cr, 1.0)) + 0.378 * ln(max(bilirubin, 1.0)) + 1.120 * ln(max(INR, 1.0)) + 0.643. Use natural logarithm (ln)."
+      },
+      {
+        "step_id": "2",
+        "step_name": "meldi_threshold_check_and_rounding",
+        "step_description": "Round MELDi to the nearest tenth, multiply by 10, and check if the result is greater than 11.",
+        "step_inputs": [
+          {
+            "input_name": "meldi",
+            "input_desc": "Raw initial MELD score",
+            "input_type": "float",
+            "input_source": "$|1|.meldi"
+          }
+        ],
+        "step_outputs": [
+          {
+            "output_name": "meldi_rounded_10",
+            "output_desc": "MELDi rounded to nearest tenth and multiplied by 10",
+            "output_type": "float"
+          },
+          {
+            "output_name": "exceeds_threshold",
+            "output_desc": "Boolean indicating if MELDi_rounded_10 > 11",
+            "output_type": "bool"
+          }
+        ],
+        "category": "ConditionEvaluation",
+        "reason": "This step involves a numerical check against a threshold (11) to determine a boolean condition, which dictates the subsequent calculation flow.",
+        "detail": "Step 1: Round MELDi to one decimal place (nearest tenth). Step 2: Multiply the rounded value by 10. Step 3: Check if the result is strictly greater than 11. Return both the computed value and the boolean result."
+      },
+      {
+        "step_id": "3",
+        "step_name": "sodium_value_adjustment",
+        "step_description": "Adjust the serum sodium (Na) value according to the rules: if Na < 125, set to 125; if Na > 137, set to 137; otherwise keep the original value.",
+        "step_inputs": [
+          {
+            "input_name": "na",
+            "input_desc": "Serum sodium concentration in mEq/L",
+            "input_type": "float",
+            "input_source": "$|inputs|.na"
+          }
+        ],
+        "step_outputs": [
+          {
+            "output_name": "na_adjusted",
+            "output_desc": "Adjusted sodium value capped between 125 and 137 mEq/L",
+            "output_type": "float"
+          }
+        ],
+        "category": "ConditionEvaluation",
+        "reason": "This step evaluates the input sodium value against lower and upper bounds (125, 137) to assign a clamped numerical value.",
+        "detail": "If Na < 125, Na_adjusted = 125. Else if Na > 137, Na_adjusted = 137. Else Na_adjusted = Na."
+      },
+      {
+        "step_id": "4",
+        "step_name": "final_meld_na_score_calculation",
+        "step_description": "Compute the final MELD Na score using the MELD formula if the threshold is exceeded, otherwise use the rounded MELDi. Round to nearest integer and cap at 40.",
+        "step_inputs": [
+          {
+            "input_name": "meldi_rounded_10",
+            "input_desc": "MELDi rounded to nearest tenth and multiplied by 10",
+            "input_type": "float",
+            "input_source": "$|2|.meldi_rounded_10"
+          },
+          {
+            "input_name": "na_adjusted",
+            "input_desc": "Adjusted sodium value in mEq/L",
+            "input_type": "float",
+            "input_source": "$|3|.na_adjusted"
+          },
+          {
+            "input_name": "exceeds_threshold",
+            "input_desc": "Boolean: true if MELDi_rounded_10 > 11",
+            "input_type": "bool",
+            "input_source": "$|2|.exceeds_threshold"
+          }
+        ],
+        "step_outputs": [
+          {
+            "output_name": "meld_na_final",
+            "output_desc": "Final MELD Na score capped at 40",
+            "output_type": "int"
+          }
+        ],
+        "category": "FormulaCalculation",
+        "reason": "This is a precise calculation combining the initial score and adjusted sodium using a defined formula with conditional application and a maximum cap, best suited for formula-based computation.",
+        "detail": "If exceeds_threshold is true: MELD = meldi_rounded_10 + 1.32 * (137 - na_adjusted) - 0.033 * meldi_rounded_10 * (137 - na_adjusted). Else: MELD = meldi_rounded_10. Round MELD to the nearest integer. If the rounded integer > 40, meld_na_final = 40. Else meld_na_final = the rounded integer."
+      }
+    ],
+    "executableCode": "import math\n\ndef solve(cr, bilirubin, inr, na):\n    \"\"\"\n    Calculate the MELD Na score according to the standard MELD Na formula with threshold and capping rules.\n    \n    Args:\n        cr: Serum creatinine concentration in mg/dL\n        bilirubin: Serum bilirubin concentration in mg/dL\n        inr: International Normalized Ratio (unitless)\n        na: Serum sodium concentration in mEq/L\n    \"\"\"\n    \n    # Step 1: Calculate initial MELD(i) score\n    # Apply minimum value of 1.0 to each input before taking natural logarithm\n    cr_input = max(cr, 1.0)\n    bilirubin_input = max(bilirubin, 1.0)\n    inr_input = max(inr, 1.0)\n    \n    meldi = 0.957 * math.log(cr_input) + 0.378 * math.log(bilirubin_input) + 1.120 * math.log(inr_input) + 0.643\n    \n    yield {\n        \"step_name\": \"meldi_calculation\",\n        \"step_description\": \"Calculate the initial MELD(i) score using the formula: 0.957 * ln(Cr) + 0.378 * ln(bilirubin) + 1.120 * ln(INR) + 0.643. If any input is less than 1.0, set it to 1.0 before calculation.\",\n        \"step_result\": meldi,\n        \"unit\": \"score\"\n    }\n    \n    # Step 2: Round MELDi to nearest tenth, multiply by 10, and check if > 11\n    meldi_rounded = round(meldi, 1)\n    meldi_rounded_10 = meldi_rounded * 10\n    exceeds_threshold = meldi_rounded_10 > 11\n    \n    yield {\n        \"step_name\": \"meldi_threshold_check_and_rounding\",\n        \"step_description\": \"Round MELDi to the nearest tenth, multiply by 10, and check if the result is greater than 11.\",\n        \"step_result\": {\n            \"meldi_rounded_10\": meldi_rounded_10,\n            \"exceeds_threshold\": exceeds_threshold\n        },\n        \"unit\": \"score\"\n    }\n    \n    # Step 3: Adjust sodium value (cap between 125 and 137 mEq/L)\n    if na < 125:\n        na_adjusted = 125.0\n    elif na > 137:\n        na_adjusted = 137.0\n    else:\n        na_adjusted = na\n    \n    yield {\n        \"step_name\": \"sodium_value_adjustment\",\n        \"step_description\": \"Adjust the serum sodium (Na) value according to the rules: if Na < 125, set to 125; if Na > 137, set to 137; otherwise keep the original value.\",\n        \"step_result\": na_adjusted,\n        \"unit\": \"mEq/L\"\n    }\n    \n    # Step 4: Compute final MELD Na score\n    if exceeds_threshold:\n        meld = meldi_rounded_10 + 1.32 * (137 - na_adjusted) - 0.033 * meldi_rounded_10 * (137 - na_adjusted)\n    else:\n        meld = meldi_rounded_10\n    \n    # Round to nearest integer and cap at 40\n    meld_rounded = round(meld)\n    if meld_rounded > 40:\n        meld_na_final = 40\n    else:\n        meld_na_final = meld_rounded\n    \n    yield {\n        \"step_name\": \"final_meld_na_score_calculation\",\n        \"step_description\": \"Compute the final MELD Na score using the MELD formula if the threshold is exceeded, otherwise use the rounded MELDi. Round to nearest integer and cap at 40.\",\n        \"step_result\": meld_na_final,\n        \"unit\": \"score\"\n    }\n    \n    return meld_na_final"
+  },
+  {
+    "id": "2b7517f62e4d",
+    "code": "CAR-004",
+    "department": "Cardiology",
+    "reference": "Risk stratification scheme for bleeding in atrial fibrillation patients on oral anticoagulation (Chest 2010;138:1093-1100)",
+    "name": "HAS-BLED Score",
+    "description": "Calculate the total HAS-BLED score based on 9 clinical criteria: hypertension, renal disease, liver disease, stroke history, prior bleeding, labile INR, age, medication usage, and alcohol use.",
+    "inputs": [
+      {
+        "input_name": "systolic_bp",
+        "input_desc": "Systolic blood pressure in mmHg",
+        "input_type": "float"
+      },
+      {
+        "input_name": "age",
+        "input_desc": "Age in years",
+        "input_type": "float"
+      },
+      {
+        "input_name": "renal_disease",
+        "input_desc": "Presence of renal disease (true for yes, false for no)",
+        "input_type": "bool"
+      },
+      {
+        "input_name": "liver_disease",
+        "input_desc": "Presence of liver disease (true for yes, false for no)",
+        "input_type": "bool"
+      },
+      {
+        "input_name": "stroke_history",
+        "input_desc": "History of stroke (true for yes, false for no)",
+        "input_type": "bool"
+      },
+      {
+        "input_name": "prior_bleeding",
+        "input_desc": "Prior major bleeding or predisposition (true for yes, false for no)",
+        "input_type": "bool"
+      },
+      {
+        "input_name": "labile_inr",
+        "input_desc": "Labile INR (true for yes, false for no)",
+        "input_type": "bool"
+      },
+      {
+        "input_name": "medication_usage",
+        "input_desc": "Medication usage predisposing to bleeding (true for yes, false for no)",
+        "input_type": "bool"
+      },
+      {
+        "input_name": "alcohol_use",
+        "input_desc": "Alcohol use (>=8 drinks/week) (true for yes, false for no)",
+        "input_type": "bool"
+      }
+    ],
+    "output": {
+      "output_name": "total_has_bled_score",
+      "output_desc": "Total HAS-BLED score (0-9)",
+      "output_type": "int",
+      "output_unit": null
+    },
+    "steps": [
+      {
+        "step_id": "1",
+        "step_name": "hypertension_evaluation",
+        "step_description": "Evaluate the hypertension criterion: assign 1 point if systolic blood pressure > 160 mmHg, otherwise 0.",
+        "step_inputs": [
+          {
+            "input_name": "systolic_bp",
+            "input_desc": "Systolic blood pressure in mmHg",
+            "input_type": "float",
+            "input_source": "$|inputs|.systolic_bp"
+          }
+        ],
+        "step_outputs": [
+          {
+            "output_name": "hypertension_points",
+            "output_desc": "Points for the hypertension criterion (0 or 1)",
+            "output_type": "int"
+          }
+        ],
+        "category": "ThresholdMapping",
+        "reason": "This step maps a continuous numerical value (systolic BP) to a discrete score based on a single threshold (>160 mmHg).",
+        "detail": "If systolic_bp > 160, hypertension_points = 1; otherwise, hypertension_points = 0."
+      },
+      {
+        "step_id": "2",
+        "step_name": "age_evaluation",
+        "step_description": "Evaluate the age criterion: assign 1 point if age > 65 years, otherwise 0.",
+        "step_inputs": [
+          {
+            "input_name": "age",
+            "input_desc": "Age in years",
+            "input_type": "float",
+            "input_source": "$|inputs|.age"
+          }
+        ],
+        "step_outputs": [
+          {
+            "output_name": "age_points",
+            "output_desc": "Points for the age criterion (0 or 1)",
+            "output_type": "int"
+          }
+        ],
+        "category": "ThresholdMapping",
+        "reason": "This step maps a continuous numerical value (age) to a discrete score based on a single threshold (>65 years).",
+        "detail": "If age > 65, age_points = 1; otherwise, age_points = 0."
+      },
+      {
+        "step_id": "3",
+        "step_name": "binary_criteria_evaluation",
+        "step_description": "Evaluate the remaining 7 binary (Yes/No) clinical criteria and sum their points.",
+        "step_inputs": [
+          {
+            "input_name": "renal_disease",
+            "input_desc": "Presence of renal disease (true for yes, false for no)",
+            "input_type": "bool",
+            "input_source": "$|inputs|.renal_disease"
+          },
+          {
+            "input_name": "liver_disease",
+            "input_desc": "Presence of liver disease (true for yes, false for no)",
+            "input_type": "bool",
+            "input_source": "$|inputs|.liver_disease"
+          },
+          {
+            "input_name": "stroke_history",
+            "input_desc": "History of stroke (true for yes, false for no)",
+            "input_type": "bool",
+            "input_source": "$|inputs|.stroke_history"
+          },
+          {
+            "input_name": "prior_bleeding",
+            "input_desc": "Prior major bleeding or predisposition (true for yes, false for no)",
+            "input_type": "bool",
+            "input_source": "$|inputs|.prior_bleeding"
+          },
+          {
+            "input_name": "labile_inr",
+            "input_desc": "Labile INR (true for yes, false for no)",
+            "input_type": "bool",
+            "input_source": "$|inputs|.labile_inr"
+          },
+          {
+            "input_name": "medication_usage",
+            "input_desc": "Medication usage predisposing to bleeding (true for yes, false for no)",
+            "input_type": "bool",
+            "input_source": "$|inputs|.medication_usage"
+          },
+          {
+            "input_name": "alcohol_use",
+            "input_desc": "Alcohol use (>=8 drinks/week) (true for yes, false for no)",
+            "input_type": "bool",
+            "input_source": "$|inputs|.alcohol_use"
+          }
+        ],
+        "step_outputs": [
+          {
+            "output_name": "binary_points",
+            "output_desc": "Sum of points for the seven binary clinical criteria (0-7)",
+            "output_type": "int"
+          }
+        ],
+        "category": "FormulaCalculation",
+        "reason": "This step uses a simple summation formula to aggregate 7 independent boolean values into a single score.",
+        "detail": "binary_points = (renal_disease ? 1 : 0) + (liver_disease ? 1 : 0) + (stroke_history ? 1 : 0) + (prior_bleeding ? 1 : 0) + (labile_inr ? 1 : 0) + (medication_usage ? 1 : 0) + (alcohol_use ? 1 : 0)"
+      },
+      {
+        "step_id": "4",
+        "step_name": "total_has_bled_score",
+        "step_description": "Sum the points from the hypertension, age, and binary clinical criteria to calculate the total HAS-BLED score.",
+        "step_inputs": [
+          {
+            "input_name": "hypertension_points",
+            "input_desc": "Points for hypertension criterion (0 or 1)",
+            "input_type": "int",
+            "input_source": "$|1|.hypertension_points"
+          },
+          {
+            "input_name": "age_points",
+            "input_desc": "Points for age criterion (0 or 1)",
+            "input_type": "int",
+            "input_source": "$|2|.age_points"
+          },
+          {
+            "input_name": "binary_points",
+            "input_desc": "Points for the seven binary criteria (0-7)",
+            "input_type": "int",
+            "input_source": "$|3|.binary_points"
+          }
+        ],
+        "step_outputs": [
+          {
+            "output_name": "total_has_bled_score",
+            "output_desc": "Total HAS-BLED score (0-9)",
+            "output_type": "int"
+          }
+        ],
+        "category": "FormulaCalculation",
+        "reason": "This is the final summation step, combining all sub-scores into the total HAS-BLED score using a simple addition formula.",
+        "detail": "total_has_bled_score = hypertension_points + age_points + binary_points"
+      }
+    ],
+    "executableCode": "def solve(systolic_bp, age, renal_disease, liver_disease, stroke_history, prior_bleeding, labile_inr, medication_usage, alcohol_use):\n    # Step 1: Hypertension Evaluation\n    # Evaluate the hypertension criterion: assign 1 point if systolic blood pressure > 160 mmHg, otherwise 0.\n    if systolic_bp > 160:\n        hypertension_points = 1\n    else:\n        hypertension_points = 0\n    yield {\n        \"step_name\": \"hypertension_evaluation\",\n        \"step_description\": \"Evaluate the hypertension criterion: assign 1 point if systolic blood pressure > 160 mmHg, otherwise 0.\",\n        \"step_result\": hypertension_points,\n        \"unit\": \"score\"\n    }\n\n    # Step 2: Age Evaluation\n    # Evaluate the age criterion: assign 1 point if age > 65 years, otherwise 0.\n    if age > 65:\n        age_points = 1\n    else:\n        age_points = 0\n    yield {\n        \"step_name\": \"age_evaluation\",\n        \"step_description\": \"Evaluate the age criterion: assign 1 point if age > 65 years, otherwise 0.\",\n        \"step_result\": age_points,\n        \"unit\": \"score\"\n    }\n\n    # Step 3: Binary Criteria Evaluation\n    # Evaluate the remaining 7 binary (Yes/No) clinical criteria and sum their points.\n    binary_points = 0\n    if renal_disease:\n        binary_points += 1\n    if liver_disease:\n        binary_points += 1\n    if stroke_history:\n        binary_points += 1\n    if prior_bleeding:\n        binary_points += 1\n    if labile_inr:\n        binary_points += 1\n    if medication_usage:\n        binary_points += 1\n    if alcohol_use:\n        binary_points += 1\n    yield {\n        \"step_name\": \"binary_criteria_evaluation\",\n        \"step_description\": \"Evaluate the remaining 7 binary (Yes/No) clinical criteria and sum their points.\",\n        \"step_result\": binary_points,\n        \"unit\": \"score\"\n    }\n\n    # Step 4: Total HAS-BLED Score\n    # Sum the points from the hypertension, age, and binary clinical criteria to calculate the total HAS-BLED score.\n    total_has_bled_score = hypertension_points + age_points + binary_points\n    yield {\n        \"step_name\": \"total_has_bled_score\",\n        \"step_description\": \"Sum the points from the hypertension, age, and binary clinical criteria to calculate the total HAS-BLED score.\",\n        \"step_result\": total_has_bled_score,\n        \"unit\": \"score\"\n    }\n\n    return total_has_bled_score"
+  },
+  {
+    "id": "a9d427d2f821",
+    "code": "GAS-003",
+    "department": "Gastroenterology",
+    "reference": "Blatchford O, et al. A risk score to predict need for treatment for upper-gastrointestinal haemorrhage. Lancet. 2000;356(9238):1318-21.",
+    "name": "Glasgow-Blatchford Bleeding Score (GBS)",
+    "description": "Calculate the total Glasgow-Blatchford Bleeding Score based on BUN, hemoglobin, systolic blood pressure, and clinical signs.",
+    "inputs": [
+      {
+        "input_name": "bun",
+        "input_desc": "Blood Urea Nitrogen level in mg/dL",
+        "input_type": "float"
+      },
+      {
+        "input_name": "hb",
+        "input_desc": "Hemoglobin level in g/dL",
+        "input_type": "float"
+      },
+      {
+        "input_name": "is_male",
+        "input_desc": "Boolean indicating if the patient is male (true) or female (false)",
+        "input_type": "bool"
+      },
+      {
+        "input_name": "sbp",
+        "input_desc": "Systolic blood pressure in mm Hg",
+        "input_type": "int"
+      },
+      {
+        "input_name": "tachycardia",
+        "input_desc": "Pulse >= 100 per minute (true if yes)",
+        "input_type": "bool"
+      },
+      {
+        "input_name": "melena",
+        "input_desc": "Melena present (true if yes)",
+        "input_type": "bool"
+      },
+      {
+        "input_name": "syncope",
+        "input_desc": "Presentation with syncope (true if yes)",
+        "input_type": "bool"
+      },
+      {
+        "input_name": "liver_disease",
+        "input_desc": "Liver disease history (true if yes)",
+        "input_type": "bool"
+      },
+      {
+        "input_name": "cardiac_failure",
+        "input_desc": "Cardiac failure present (true if yes)",
+        "input_type": "bool"
+      }
+    ],
+    "output": {
+      "output_name": "total_gbs_score",
+      "output_desc": "Final Glasgow-Blatchford Bleeding Score",
+      "output_type": "int",
+      "output_unit": null
+    },
+    "steps": [
+      {
+        "step_id": "1",
+        "step_name": "calculate_bun_score",
+        "step_description": "Calculate the BUN score based on the BUN value in mg/dL using the Glasgow-Blatchford criteria.",
+        "step_inputs": [
+          {
+            "input_name": "bun",
+            "input_desc": "Blood Urea Nitrogen level in mg/dL",
+            "input_type": "float",
+            "input_source": "$|inputs|.bun"
+          }
+        ],
+        "step_outputs": [
+          {
+            "output_name": "bun_score",
+            "output_desc": "Points assigned for BUN level",
+            "output_type": "int"
+          }
+        ],
+        "category": "ConditionEvaluation",
+        "reason": "This step involves evaluating a continuous numeric value (BUN) against multiple threshold ranges to assign a discrete point value, which matches the ConditionEvaluation category.",
+        "detail": "If bun < 18.2, score = 0. If 18.2 <= bun <= 22.3, score = 2. If 22.4 <= bun <= 28, score = 3. If 28 < bun <= 70, score = 4. If bun > 70, score = 6."
+      },
+      {
+        "step_id": "2",
+        "step_name": "calculate_hb_score",
+        "step_description": "Calculate the Hemoglobin score based on Hb value in g/dL and patient's sex.",
+        "step_inputs": [
+          {
+            "input_name": "hb",
+            "input_desc": "Hemoglobin level in g/dL",
+            "input_type": "float",
+            "input_source": "$|inputs|.hb"
+          },
+          {
+            "input_name": "is_male",
+            "input_desc": "Boolean indicating if the patient is male (true) or female (false)",
+            "input_type": "bool",
+            "input_source": "$|inputs|.is_male"
+          }
+        ],
+        "step_outputs": [
+          {
+            "output_name": "hb_score",
+            "output_desc": "Points assigned for Hemoglobin level",
+            "output_type": "int"
+          }
+        ],
+        "category": "ConditionEvaluation",
+        "reason": "This step evaluates hemoglobin against sex-specific thresholds to assign points, fitting the ConditionEvaluation pattern.",
+        "detail": "If is_male is true: If hb >= 13, score = 0. If 12 <= hb < 13, score = 1. If 10 <= hb < 12, score = 3. If hb < 10, score = 6. If is_male is false: If hb >= 12, score = 0. If 10 <= hb < 12, score = 1. If hb < 10, score = 6."
+      },
+      {
+        "step_id": "3",
+        "step_name": "calculate_sbp_score",
+        "step_description": "Calculate the systolic blood pressure score.",
+        "step_inputs": [
+          {
+            "input_name": "sbp",
+            "input_desc": "Systolic blood pressure in mm Hg",
+            "input_type": "int",
+            "input_source": "$|inputs|.sbp"
+          }
+        ],
+        "step_outputs": [
+          {
+            "output_name": "sbp_score",
+            "output_desc": "Points assigned for systolic blood pressure",
+            "output_type": "int"
+          }
+        ],
+        "category": "ConditionEvaluation",
+        "reason": "Mapping systolic BP to points based on numerical thresholds is a ConditionEvaluation task.",
+        "detail": "If sbp >= 110, score = 0. If 100 <= sbp <= 109, score = 1. If 90 <= sbp <= 99, score = 2. If sbp < 90, score = 3."
+      },
+      {
+        "step_id": "4",
+        "step_name": "calculate_clinical_signs_score",
+        "step_description": "Calculate points for pulse >= 100, melena, syncope, liver disease history, and cardiac failure based on boolean inputs.",
+        "step_inputs": [
+          {
+            "input_name": "tachycardia",
+            "input_desc": "Pulse >= 100 per minute (true if yes)",
+            "input_type": "bool",
+            "input_source": "$|inputs|.tachycardia"
+          },
+          {
+            "input_name": "melena",
+            "input_desc": "Melena present (true if yes)",
+            "input_type": "bool",
+            "input_source": "$|inputs|.melena"
+          },
+          {
+            "input_name": "syncope",
+            "input_desc": "Presentation with syncope (true if yes)",
+            "input_type": "bool",
+            "input_source": "$|inputs|.syncope"
+          },
+          {
+            "input_name": "liver_disease",
+            "input_desc": "Liver disease history (true if yes)",
+            "input_type": "bool",
+            "input_source": "$|inputs|.liver_disease"
+          },
+          {
+            "input_name": "cardiac_failure",
+            "input_desc": "Cardiac failure present (true if yes)",
+            "input_type": "bool",
+            "input_source": "$|inputs|.cardiac_failure"
+          }
+        ],
+        "step_outputs": [
+          {
+            "output_name": "clinical_score",
+            "output_desc": "Sum of points for pulse, melena, syncope, liver disease, and cardiac failure",
+            "output_type": "int"
+          }
+        ],
+        "category": "LogicalCombination",
+        "reason": "This step combines multiple boolean flags into a single score by applying conditional point values and summing them, which aligns with LogicalCombination.",
+        "detail": "Tachycardia: if true, +1 else 0. Melena: if true, +1 else 0. Syncope: if true, +2 else 0. Liver disease: if true, +2 else 0. Cardiac failure: if true, +2 else 0. Sum these five values."
+      },
+      {
+        "step_id": "5",
+        "step_name": "calculate_total_gbs_score",
+        "step_description": "Sum all individual component scores to obtain the total Glasgow-Blatchford Bleeding Score.",
+        "step_inputs": [
+          {
+            "input_name": "bun_score",
+            "input_desc": "BUN score from Step 1",
+            "input_type": "int",
+            "input_source": "$|1|.bun_score"
+          },
+          {
+            "input_name": "hb_score",
+            "input_desc": "Hemoglobin score from Step 2",
+            "input_type": "int",
+            "input_source": "$|2|.hb_score"
+          },
+          {
+            "input_name": "sbp_score",
+            "input_desc": "Systolic BP score from Step 3",
+            "input_type": "int",
+            "input_source": "$|3|.sbp_score"
+          },
+          {
+            "input_name": "clinical_score",
+            "input_desc": "Clinical signs score from Step 4",
+            "input_type": "int",
+            "input_source": "$|4|.clinical_score"
+          }
+        ],
+        "step_outputs": [
+          {
+            "output_name": "total_gbs_score",
+            "output_desc": "Total Glasgow-Blatchford Bleeding Score",
+            "output_type": "int"
+          }
+        ],
+        "category": "FormulaCalculation",
+        "reason": "This is a simple arithmetic summation of discrete integer values, fitting the FormulaCalculation category.",
+        "detail": "total_gbs_score = bun_score + hb_score + sbp_score + clinical_score"
+      }
+    ],
+    "executableCode": "import math\n\ndef solve(bun, hb, is_male, sbp, tachycardia, melena, syncope, liver_disease, cardiac_failure):\n    \"\"\"\n    Calculate the total Glasgow-Blatchford Bleeding Score.\n    \n    Args:\n        bun: Blood Urea Nitrogen level in mg/dL\n        hb: Hemoglobin level in g/dL\n        is_male: Boolean indicating if the patient is male\n        sbp: Systolic blood pressure in mm Hg\n        tachycardia: Pulse >= 100 per minute\n        melena: Melena present\n        syncope: Presentation with syncope\n        liver_disease: Liver disease history\n        cardiac_failure: Cardiac failure present\n        \n    Yields:\n        Dictionaries containing step results\n        \n    Returns:\n        Total Glasgow-Blatchford Bleeding Score\n    \"\"\"\n    \n    # Step 1: calculate_bun_score - Calculate BUN score based on BUN value in mg/dL\n    if bun < 18.2:\n        bun_score = 0\n    elif 18.2 <= bun <= 22.3:\n        bun_score = 2\n    elif 22.4 <= bun <= 28:\n        bun_score = 3\n    elif 28 < bun <= 70:\n        bun_score = 4\n    else:  # bun > 70\n        bun_score = 6\n    \n    yield {\n        \"step_name\": \"calculate_bun_score\",\n        \"step_description\": \"Calculate the BUN score based on the BUN value in mg/dL using the Glasgow-Blatchford criteria\",\n        \"step_result\": bun_score,\n        \"unit\": \"score\"\n    }\n    \n    # Step 2: calculate_hb_score - Calculate Hemoglobin score based on Hb and sex\n    if is_male:\n        if hb >= 13:\n            hb_score = 0\n        elif 12 <= hb < 13:\n            hb_score = 1\n        elif 10 <= hb < 12:\n            hb_score = 3\n        else:  # hb < 10\n            hb_score = 6\n    else:  # female\n        if hb >= 12:\n            hb_score = 0\n        elif 10 <= hb < 12:\n            hb_score = 1\n        else:  # hb < 10\n            hb_score = 6\n    \n    yield {\n        \"step_name\": \"calculate_hb_score\",\n        \"step_description\": \"Calculate the Hemoglobin score based on Hb value in g/dL and patient's sex\",\n        \"step_result\": hb_score,\n        \"unit\": \"score\"\n    }\n    \n    # Step 3: calculate_sbp_score - Calculate systolic blood pressure score\n    if sbp >= 110:\n        sbp_score = 0\n    elif 100 <= sbp <= 109:\n        sbp_score = 1\n    elif 90 <= sbp <= 99:\n        sbp_score = 2\n    else:  # sbp < 90\n        sbp_score = 3\n    \n    yield {\n        \"step_name\": \"calculate_sbp_score\",\n        \"step_description\": \"Calculate the systolic blood pressure score based on SBP in mm Hg\",\n        \"step_result\": sbp_score,\n        \"unit\": \"score\"\n    }\n    \n    # Step 4: calculate_clinical_signs_score - Calculate clinical signs score from boolean inputs\n    tachycardia_score = 1 if tachycardia else 0\n    melena_score = 1 if melena else 0\n    syncope_score = 2 if syncope else 0\n    liver_disease_score = 2 if liver_disease else 0\n    cardiac_failure_score = 2 if cardiac_failure else 0\n    clinical_score = tachycardia_score + melena_score + syncope_score + liver_disease_score + cardiac_failure_score\n    \n    yield {\n        \"step_name\": \"calculate_clinical_signs_score\",\n        \"step_description\": \"Calculate points for pulse >= 100, melena, syncope, liver disease history, and cardiac failure based on boolean inputs\",\n        \"step_result\": clinical_score,\n        \"unit\": \"score\"\n    }\n    \n    # Step 5: calculate_total_gbs_score - Sum all individual component scores\n    total_gbs_score = bun_score + hb_score + sbp_score + clinical_score\n    \n    yield {\n        \"step_name\": \"calculate_total_gbs_score\",\n        \"step_description\": \"Sum all individual component scores to obtain the total Glasgow-Blatchford Bleeding Score\",\n        \"step_result\": total_gbs_score,\n        \"unit\": \"score\"\n    }\n    \n    return total_gbs_score"
+  },
+  {
+    "id": "68d565ab52da",
+    "code": "NEP-004",
+    "department": "Nephrology",
+    "reference": "Calculated as 2*Na + (BUN/2.8) + (Glucose/18), a standard clinical formula for estimating serum osmolality.",
+    "name": "Serum Osmolality",
+    "description": "Calculate serum osmolality using the formula: 2 * Na + (BUN / 2.8) + (glucose / 18)",
+    "inputs": [
+      {
+        "input_name": "na",
+        "input_desc": "Concentration of sodium in mmol/L",
+        "input_type": "float"
+      },
+      {
+        "input_name": "bun",
+        "input_desc": "Concentration of blood urea nitrogen in mg/dL",
+        "input_type": "float"
+      },
+      {
+        "input_name": "glucose",
+        "input_desc": "Concentration of glucose in mg/dL",
+        "input_type": "float"
+      }
+    ],
+    "output": {
+      "output_name": "serum_osmolality",
+      "output_desc": "Calculated serum osmolality",
+      "output_type": "float",
+      "output_unit": "mOsm/kg"
+    },
+    "steps": [
+      {
+        "step_id": "1",
+        "step_name": "calculate_serum_osmolality",
+        "step_description": "Compute serum osmolality using the formula: 2 * Na + (BUN / 2.8) + (glucose / 18)",
+        "step_inputs": [
+          {
+            "input_name": "na",
+            "input_desc": "Concentration of sodium in mmol/L",
+            "input_type": "float",
+            "input_source": "$|inputs|.na"
+          },
+          {
+            "input_name": "bun",
+            "input_desc": "Concentration of blood urea nitrogen in mg/dL",
+            "input_type": "float",
+            "input_source": "$|inputs|.bun"
+          },
+          {
+            "input_name": "glucose",
+            "input_desc": "Concentration of glucose in mg/dL",
+            "input_type": "float",
+            "input_source": "$|inputs|.glucose"
+          }
+        ],
+        "step_outputs": [
+          {
+            "output_name": "serum_osmolality",
+            "output_desc": "Calculated serum osmolality in mOsm/kg",
+            "output_type": "float"
+          }
+        ],
+        "category": "FormulaCalculation",
+        "reason": "The task involves computing a precise numerical result from a clear mathematical formula with three input variables. There are no conditional branches, lookup tables, or unit conversions required.",
+        "detail": "serum_osmolality = 2 * na + (bun / 2.8) + (glucose / 18)"
+      }
+    ],
+    "executableCode": "import math\n\ndef solve(na, bun, glucose):\n    \"\"\"\n    Calculate serum osmolality using the formula: 2 * Na + (BUN / 2.8) + (glucose / 18)\n    \n    Args:\n        na: Concentration of sodium in mmol/L\n        bun: Concentration of blood urea nitrogen in mg/dL\n        glucose: Concentration of glucose in mg/dL\n        \n    Yields:\n        dict: Step result with step_name, step_description, step_result, unit\n        \n    Returns:\n        float: Calculated serum osmolality in mOsm/kg\n    \"\"\"\n    \n    # Step 1: Calculate serum osmolality\n    # Compute serum osmolality using the formula: 2 * Na + (BUN / 2.8) + (glucose / 18)\n    serum_osmolality = 2 * na + (bun / 2.8) + (glucose / 18)\n    \n    yield {\n        \"step_name\": \"calculate_serum_osmolality\",\n        \"step_description\": \"Compute serum osmolality using the formula: 2 * Na + (BUN / 2.8) + (glucose / 18)\",\n        \"step_result\": round(serum_osmolality, 2),\n        \"unit\": \"mOsm/kg\"\n    }\n    \n    return serum_osmolality"
+  },
+  {
+    "id": "62649cfe57b5",
+    "code": "GEN-006",
+    "department": "General",
+    "reference": "Little P, et al. BMJ 2013;347:f5806. Clinical score to guide antibiotic prescribing for sore throat.",
+    "name": "FeverPAIN Score",
+    "description": "Calculate the FeverPAIN score by summing points from five clinical criteria, each contributing 1 point if present and 0 if absent.",
+    "inputs": [
+      {
+        "input_name": "fever_past_24h",
+        "input_desc": "Fever in past 24 hours (Yes/No). Allowed values: true, false.",
+        "input_type": "bool"
+      },
+      {
+        "input_name": "absence_cough_coryza",
+        "input_desc": "Absence of cough or coryza (Yes/No). Allowed values: true, false.",
+        "input_type": "bool"
+      },
+      {
+        "input_name": "symptom_onset_leq_3_days",
+        "input_desc": "Symptom onset ≤3 days (Yes/No). Allowed values: true, false.",
+        "input_type": "bool"
+      },
+      {
+        "input_name": "purulent_tonsils",
+        "input_desc": "Purulent tonsils (Yes/No). Allowed values: true, false.",
+        "input_type": "bool"
+      },
+      {
+        "input_name": "severe_tonsil_inflammation",
+        "input_desc": "Severe tonsil inflammation (Yes/No). Allowed values: true, false.",
+        "input_type": "bool"
+      }
+    ],
+    "output": {
+      "output_name": "feverpain_score",
+      "output_desc": "Final calculated FeverPAIN score",
+      "output_type": "int",
+      "output_unit": null
+    },
+    "steps": [
+      {
+        "step_id": "1",
+        "step_name": "calculate_feverpain_score",
+        "step_description": "Sum the points from the five FeverPAIN criteria: each criterion is 1 if true, 0 if false.",
+        "step_inputs": [
+          {
+            "input_name": "fever_past_24h",
+            "input_desc": "Fever in past 24 hours (true/false)",
+            "input_type": "bool",
+            "input_source": "$|inputs|.fever_past_24h"
+          },
+          {
+            "input_name": "absence_cough_coryza",
+            "input_desc": "Absence of cough or coryza (true/false)",
+            "input_type": "bool",
+            "input_source": "$|inputs|.absence_cough_coryza"
+          },
+          {
+            "input_name": "symptom_onset_leq_3_days",
+            "input_desc": "Symptom onset ≤3 days (true/false)",
+            "input_type": "bool",
+            "input_source": "$|inputs|.symptom_onset_leq_3_days"
+          },
+          {
+            "input_name": "purulent_tonsils",
+            "input_desc": "Purulent tonsils (true/false)",
+            "input_type": "bool",
+            "input_source": "$|inputs|.purulent_tonsils"
+          },
+          {
+            "input_name": "severe_tonsil_inflammation",
+            "input_desc": "Severe tonsil inflammation (true/false)",
+            "input_type": "bool",
+            "input_source": "$|inputs|.severe_tonsil_inflammation"
+          }
+        ],
+        "step_outputs": [
+          {
+            "output_name": "feverpain_score",
+            "output_desc": "Total FeverPAIN score, an integer from 0 to 5",
+            "output_type": "int"
+          }
+        ],
+        "category": "FormulaCalculation",
+        "reason": "The FeverPAIN score is a simple arithmetic sum of five binary values, fitting the FormulaCalculation category as a direct mathematical formula.",
+        "detail": "Convert each boolean to an integer (true=1, false=0) and sum: feverpain_score = (fever_past_24h ? 1 : 0) + (absence_cough_coryza ? 1 : 0) + (symptom_onset_leq_3_days ? 1 : 0) + (purulent_tonsils ? 1 : 0) + (severe_tonsil_inflammation ? 1 : 0)."
+      }
+    ],
+    "executableCode": "def solve(fever_past_24h, absence_cough_coryza, symptom_onset_leq_3_days, purulent_tonsils, severe_tonsil_inflammation):\n    # Step 1: Calculate the FeverPAIN score by summing points from five clinical criteria.\n    # Each criterion contributes 1 point if true, 0 if false.\n    \n    # Convert boolean values to integers (True -> 1, False -> 0) and sum them\n    score = (1 if fever_past_24h else 0) + \\\n            (1 if absence_cough_coryza else 0) + \\\n            (1 if symptom_onset_leq_3_days else 0) + \\\n            (1 if purulent_tonsils else 0) + \\\n            (1 if severe_tonsil_inflammation else 0)\n    \n    yield {\n        \"step_name\": \"calculate_feverpain_score\",\n        \"step_description\": \"Sum the points from the five FeverPAIN criteria: each criterion is 1 if true, 0 if false.\",\n        \"step_result\": score,\n        \"unit\": \"score\"\n    }\n    \n    return score"
+  },
+  {
+    "id": "2608c9b05ac9",
+    "code": "INF-001",
+    "department": "InfectiousDisease",
+    "reference": "1992 ACCP/SCCM Consensus Conference. Crit Care Med. 1992;20(6):864-74.",
+    "name": "Systemic Inflammatory Response Syndrome (SIRS) Criteria",
+    "description": "Evaluate SIRS criteria based on temperature, heart rate, respiratory rate/PaCO2, and WBC/bands, then sum the individual scores.",
+    "inputs": [
+      {
+        "input_name": "temperature_celsius",
+        "input_desc": "Patient's body temperature in degrees Celsius",
+        "input_type": "float"
+      },
+      {
+        "input_name": "heart_rate_bpm",
+        "input_desc": "Patient's heart rate in beats per minute",
+        "input_type": "integer"
+      },
+      {
+        "input_name": "respiratory_rate_bpm",
+        "input_desc": "Patient's respiratory rate in breaths per minute",
+        "input_type": "integer"
+      },
+      {
+        "input_name": "paco2_mm_hg",
+        "input_desc": "Patient's arterial PaCO2 in mm Hg",
+        "input_type": "float"
+      },
+      {
+        "input_name": "wbc_per_mm3",
+        "input_desc": "Patient's white blood cell count per mm3",
+        "input_type": "float"
+      },
+      {
+        "input_name": "bands_percentage",
+        "input_desc": "Percentage of bands in white blood cell differential",
+        "input_type": "float"
+      }
+    ],
+    "output": {
+      "output_name": "total_sirs_score",
+      "output_desc": "Total SIRS criteria met, ranging from 0 to 4",
+      "output_type": "integer",
+      "output_unit": null
+    },
+    "steps": [
+      {
+        "step_id": "1",
+        "step_name": "temperature_criteria_evaluation",
+        "step_description": "Evaluate whether the patient's temperature meets the SIRS criteria: >38C or <36C.",
+        "step_inputs": [
+          {
+            "input_name": "temperature_celsius",
+            "input_desc": "Patient's body temperature in degrees Celsius",
+            "input_type": "float",
+            "input_source": "$|inputs|.temperature_celsius"
+          }
+        ],
+        "step_outputs": [
+          {
+            "output_name": "temp_score",
+            "output_desc": "Temperature criterion score (0 or 1)",
+            "output_type": "integer"
+          }
+        ],
+        "category": "ConditionEvaluation",
+        "reason": "This step involves evaluating a continuous numerical value (temperature) against threshold conditions to produce a discrete score (0 or 1), which matches the ConditionEvaluation tool scope.",
+        "detail": "If temperature_celsius > 38 OR temperature_celsius < 36, output = 1; else output = 0."
+      },
+      {
+        "step_id": "2",
+        "step_name": "heart_rate_criteria_evaluation",
+        "step_description": "Evaluate whether the patient's heart rate meets the SIRS criteria: >90 bpm.",
+        "step_inputs": [
+          {
+            "input_name": "heart_rate_bpm",
+            "input_desc": "Patient's heart rate in beats per minute",
+            "input_type": "integer",
+            "input_source": "$|inputs|.heart_rate_bpm"
+          }
+        ],
+        "step_outputs": [
+          {
+            "output_name": "hr_score",
+            "output_desc": "Heart rate criterion score (0 or 1)",
+            "output_type": "integer"
+          }
+        ],
+        "category": "ConditionEvaluation",
+        "reason": "This step evaluates a numerical value (heart rate) against a single threshold to produce a binary score, fitting the ConditionEvaluation category.",
+        "detail": "If heart_rate_bpm > 90, output = 1; else output = 0."
+      },
+      {
+        "step_id": "3",
+        "step_name": "respiratory_criteria_evaluation",
+        "step_description": "Evaluate whether the patient's respiratory criteria meet the SIRS criteria: respiratory rate >20 bpm OR PaCO2 <32 mm Hg.",
+        "step_inputs": [
+          {
+            "input_name": "respiratory_rate_bpm",
+            "input_desc": "Patient's respiratory rate in breaths per minute",
+            "input_type": "integer",
+            "input_source": "$|inputs|.respiratory_rate_bpm"
+          },
+          {
+            "input_name": "paco2_mm_hg",
+            "input_desc": "Patient's arterial PaCO2 in mm Hg",
+            "input_type": "float",
+            "input_source": "$|inputs|.paco2_mm_hg"
+          }
+        ],
+        "step_outputs": [
+          {
+            "output_name": "resp_score",
+            "output_desc": "Respiratory criterion score (0 or 1)",
+            "output_type": "integer"
+          }
+        ],
+        "category": "ConditionEvaluation",
+        "reason": "This step evaluates two numerical parameters with an OR logical combination against thresholds, which is a typical condition evaluation scenario.",
+        "detail": "If respiratory_rate_bpm > 20 OR paco2_mm_hg < 32, output = 1; else output = 0."
+      },
+      {
+        "step_id": "4",
+        "step_name": "wbc_criteria_evaluation",
+        "step_description": "Evaluate whether the patient's WBC count or bands percentage meets the SIRS criteria: WBC >12,000/mm3, <4,000/mm3, or >10% bands.",
+        "step_inputs": [
+          {
+            "input_name": "wbc_per_mm3",
+            "input_desc": "Patient's white blood cell count per mm3",
+            "input_type": "float",
+            "input_source": "$|inputs|.wbc_per_mm3"
+          },
+          {
+            "input_name": "bands_percentage",
+            "input_desc": "Percentage of bands in white blood cell differential",
+            "input_type": "float",
+            "input_source": "$|inputs|.bands_percentage"
+          }
+        ],
+        "step_outputs": [
+          {
+            "output_name": "wbc_score",
+            "output_desc": "WBC criterion score (0 or 1)",
+            "output_type": "integer"
+          }
+        ],
+        "category": "ConditionEvaluation",
+        "reason": "This step evaluates multiple numerical parameters against thresholds with OR logic, which is a condition evaluation task.",
+        "detail": "If wbc_per_mm3 > 12000 OR wbc_per_mm3 < 4000 OR bands_percentage > 10, output = 1; else output = 0."
+      },
+      {
+        "step_id": "5",
+        "step_name": "sirs_total_score",
+        "step_description": "Calculate the total SIRS score by summing the individual criterion scores.",
+        "step_inputs": [
+          {
+            "input_name": "temp_score",
+            "input_desc": "Temperature criterion score (0 or 1)",
+            "input_type": "integer",
+            "input_source": "$|1|.temp_score"
+          },
+          {
+            "input_name": "hr_score",
+            "input_desc": "Heart rate criterion score (0 or 1)",
+            "input_type": "integer",
+            "input_source": "$|2|.hr_score"
+          },
+          {
+            "input_name": "resp_score",
+            "input_desc": "Respiratory criterion score (0 or 1)",
+            "input_type": "integer",
+            "input_source": "$|3|.resp_score"
+          },
+          {
+            "input_name": "wbc_score",
+            "input_desc": "WBC criterion score (0 or 1)",
+            "input_type": "integer",
+            "input_source": "$|4|.wbc_score"
+          }
+        ],
+        "step_outputs": [
+          {
+            "output_name": "total_sirs_score",
+            "output_desc": "Total SIRS criteria met, ranging from 0 to 4",
+            "output_type": "integer"
+          }
+        ],
+        "category": "FormulaCalculation",
+        "reason": "This step performs a simple arithmetic summation of four discrete scores, which is a straightforward formula calculation.",
+        "detail": "total_sirs_score = temp_score + hr_score + resp_score + wbc_score"
+      }
+    ],
+    "executableCode": "def solve(temperature_celsius, heart_rate_bpm, respiratory_rate_bpm, paco2_mm_hg, wbc_per_mm3, bands_percentage):\n    # Step 1: temperature_criteria_evaluation\n    # Evaluate whether the patient's temperature meets the SIRS criteria: >38C or <36C.\n    if temperature_celsius > 38 or temperature_celsius < 36:\n        temp_score = 1\n    else:\n        temp_score = 0\n    yield {\n        \"step_name\": \"temperature_criteria_evaluation\",\n        \"step_description\": \"Evaluate whether the patient's temperature meets the SIRS criteria: >38C or <36C.\",\n        \"step_result\": temp_score,\n        \"unit\": \"score\"\n    }\n\n    # Step 2: heart_rate_criteria_evaluation\n    # Evaluate whether the patient's heart rate meets the SIRS criteria: >90 bpm.\n    if heart_rate_bpm > 90:\n        hr_score = 1\n    else:\n        hr_score = 0\n    yield {\n        \"step_name\": \"heart_rate_criteria_evaluation\",\n        \"step_description\": \"Evaluate whether the patient's heart rate meets the SIRS criteria: >90 bpm.\",\n        \"step_result\": hr_score,\n        \"unit\": \"score\"\n    }\n\n    # Step 3: respiratory_criteria_evaluation\n    # Evaluate whether the patient's respiratory criteria meet the SIRS criteria: respiratory rate >20 bpm OR PaCO2 <32 mm Hg.\n    if respiratory_rate_bpm > 20 or paco2_mm_hg < 32:\n        resp_score = 1\n    else:\n        resp_score = 0\n    yield {\n        \"step_name\": \"respiratory_criteria_evaluation\",\n        \"step_description\": \"Evaluate whether the patient's respiratory criteria meet the SIRS criteria: respiratory rate >20 bpm OR PaCO2 <32 mm Hg.\",\n        \"step_result\": resp_score,\n        \"unit\": \"score\"\n    }\n\n    # Step 4: wbc_criteria_evaluation\n    # Evaluate whether the patient's WBC count or bands percentage meets the SIRS criteria: WBC >12,000/mm3, <4,000/mm3, or >10% bands.\n    if wbc_per_mm3 > 12000 or wbc_per_mm3 < 4000 or bands_percentage > 10:\n        wbc_score = 1\n    else:\n        wbc_score = 0\n    yield {\n        \"step_name\": \"wbc_criteria_evaluation\",\n        \"step_description\": \"Evaluate whether the patient's WBC count or bands percentage meets the SIRS criteria: WBC >12,000/mm3, <4,000/mm3, or >10% bands.\",\n        \"step_result\": wbc_score,\n        \"unit\": \"score\"\n    }\n\n    # Step 5: sirs_total_score\n    # Calculate the total SIRS score by summing the individual criterion scores.\n    total_sirs_score = temp_score + hr_score + resp_score + wbc_score\n    yield {\n        \"step_name\": \"sirs_total_score\",\n        \"step_description\": \"Calculate the total SIRS score by summing the individual criterion scores.\",\n        \"step_result\": total_sirs_score,\n        \"unit\": \"score\"\n    }\n\n    return total_sirs_score"
+  },
+  {
+    "id": "c2333a370c2b",
+    "code": "END-001",
+    "department": "Endocrinology",
+    "reference": "Standardized corticosteroid equivalence tables based on anti-inflammatory potency, commonly referenced in rheumatology and endocrinology guidelines.",
+    "name": "Corticosteroid Conversion Calculator",
+    "description": "Calculates the equivalent dose of a target corticosteroid based on a given dose of a source corticosteroid, using a pharmacological equivalent dose table.",
+    "inputs": [
+      {
+        "input_name": "source_steroid",
+        "input_desc": "Name of the source corticosteroid. Must be one of: 'Betamethasone', 'Cortisone', 'Dexamethasone (Decadron)', 'Hydrocortisone', 'MethylPrednisoLONE', 'PrednisoLONE', 'PredniSONE', 'Triamcinolone'",
+        "input_type": "str"
+      },
+      {
+        "input_name": "source_dose",
+        "input_desc": "Dose of the source corticosteroid in milligrams",
+        "input_type": "float"
+      },
+      {
+        "input_name": "target_steroid",
+        "input_desc": "Name of the target corticosteroid. Must be one of: 'Betamethasone', 'Cortisone', 'Dexamethasone (Decadron)', 'Hydrocortisone', 'MethylPrednisoLONE', 'PrednisoLONE', 'PredniSONE', 'Triamcinolone'",
+        "input_type": "str"
+      }
+    ],
+    "output": {
+      "output_name": "target_dose",
+      "output_desc": "Equivalent dose of the target corticosteroid in milligrams, rounded to 4 decimal places",
+      "output_type": "float",
+      "output_unit": "mg"
+    },
+    "steps": [
+      {
+        "step_id": "1",
+        "step_name": "steroid_dose_conversion",
+        "step_description": "Calculates the equivalent dose of the target steroid by looking up equivalent doses from a predefined table, computing the conversion ratio, and applying it to the source dose.",
+        "step_inputs": [
+          {
+            "input_name": "source_steroid",
+            "input_desc": "Name of the source corticosteroid. Enum: 'Betamethasone', 'Cortisone', 'Dexamethasone (Decadron)', 'Hydrocortisone', 'MethylPrednisoLONE', 'PrednisoLONE', 'PredniSONE', 'Triamcinolone'",
+            "input_type": "str",
+            "input_source": "$|inputs|.source_steroid"
+          },
+          {
+            "input_name": "source_dose",
+            "input_desc": "Dose of the source corticosteroid in milligrams",
+            "input_type": "float",
+            "input_source": "$|inputs|.source_dose"
+          },
+          {
+            "input_name": "target_steroid",
+            "input_desc": "Name of the target corticosteroid. Enum: 'Betamethasone', 'Cortisone', 'Dexamethasone (Decadron)', 'Hydrocortisone', 'MethylPrednisoLONE', 'PrednisoLONE', 'PredniSONE', 'Triamcinolone'",
+            "input_type": "str",
+            "input_source": "$|inputs|.target_steroid"
+          }
+        ],
+        "step_outputs": [
+          {
+            "output_name": "target_dose",
+            "output_desc": "Equivalent dose of the target corticosteroid in milligrams",
+            "output_type": "float"
+          },
+          {
+            "output_name": "target_unit",
+            "output_desc": "Unit of the calculated dose",
+            "output_type": "str"
+          }
+        ],
+        "category": "FormulaCalculation",
+        "reason": "The core logic involves retrieving constant equivalent doses from a table and applying a formula (multiplication and division) to compute the target dose, with no conditional branching.",
+        "detail": "Step 1: Look up the equivalent dose for the source steroid (source_eq) from the table: Betamethasone=0.75 mg, Cortisone=25 mg, Dexamethasone (Decadron)=0.75 mg, Hydrocortisone=20 mg, MethylPrednisoLONE=4 mg, PrednisoLONE=5 mg, PredniSONE=5 mg, Triamcinolone=4 mg. Step 2: Look up the equivalent dose for the target steroid (target_eq) from the same table. Step 3: Calculate the conversion ratio: ratio = target_eq / source_eq. Step 4: Calculate the target dose: target_dose = source_dose * ratio. Step 5: Round target_dose to 4 decimal places. The target_unit is 'mg'."
+      }
+    ],
+    "executableCode": "import math\n\ndef solve(source_steroid, source_dose, target_steroid):\n    # Step 1: Define equivalent dose table for all corticosteroids (in mg)\n    equiv_table = {\n        'Betamethasone': 0.75,\n        'Cortisone': 25,\n        'Dexamethasone (Decadron)': 0.75,\n        'Hydrocortisone': 20,\n        'MethylPrednisoLONE': 4,\n        'PrednisoLONE': 5,\n        'PredniSONE': 5,\n        'Triamcinolone': 4\n    }\n    \n    # Step 2: Look up source equivalent dose\n    source_eq = equiv_table[source_steroid]\n    \n    # Step 3: Look up target equivalent dose\n    target_eq = equiv_table[target_steroid]\n    \n    # Step 4: Calculate conversion ratio\n    ratio = target_eq / source_eq\n    \n    # Step 5: Calculate target dose\n    target_dose = source_dose * ratio\n    \n    # Step 6: Round target dose to 4 decimal places\n    target_dose = round(target_dose, 4)\n    \n    # Yield the step result\n    yield {\n        \"step_name\": \"steroid_dose_conversion\",\n        \"step_description\": \"Calculates the equivalent dose of the target steroid by looking up equivalent doses from a predefined table, computing the conversion ratio, and applying it to the source dose, with result rounded to 4 decimal places.\",\n        \"step_result\": target_dose,\n        \"unit\": \"mg\"\n    }\n    \n    return target_dose"
+  },
+  {
+    "id": "8d445486cff1",
+    "code": "OBS-001",
+    "department": "Obstetrics",
+    "reference": "Naegele's Rule standard formula: EDD = LMP + 280 days + (cycle length - 28) days",
+    "name": "Estimated Due Date (EDD) by Naegele's Rule",
+    "description": "Calculate the estimated due date (EDD) based on the last menstrual period (LMP) date and cycle length using Naegele's Rule.",
+    "inputs": [
+      {
+        "input_name": "lmp_date",
+        "input_desc": "Date of the last menstrual period in YYYY-MM-DD format (string)",
+        "input_type": "str"
+      },
+      {
+        "input_name": "cycle_length",
+        "input_desc": "Patient's menstrual cycle length in days",
+        "input_type": "int"
+      }
+    ],
+    "output": {
+      "output_name": "estimated_due_date",
+      "output_desc": "Estimated due date in YYYY-MM-DD format (string)",
+      "output_type": "str",
+      "output_unit": null
+    },
+    "steps": [
+      {
+        "step_id": "1",
+        "step_name": "cycle_adjustment_calculation",
+        "step_description": "Calculate the cycle length adjustment in days by subtracting the standard 28-day cycle from the patient's actual cycle length.",
+        "step_inputs": [
+          {
+            "input_name": "cycle_length",
+            "input_desc": "Patient's menstrual cycle length in days",
+            "input_type": "int",
+            "input_source": "$|inputs|.cycle_length"
+          }
+        ],
+        "step_outputs": [
+          {
+            "output_name": "cycle_adjustment",
+            "output_desc": "Number of days to adjust from the standard 280 days",
+            "output_type": "int"
+          }
+        ],
+        "category": "FormulaCalculation",
+        "reason": "This step involves a simple arithmetic formula to compute the deviation from the standard 28-day cycle, fitting the FormulaCalculation category.",
+        "detail": "cycle_adjustment = cycle_length - 28"
+      },
+      {
+        "step_id": "2",
+        "step_name": "total_gestation_days",
+        "step_description": "Calculate the total gestation days by adding the cycle adjustment to the standard 280 days.",
+        "step_inputs": [
+          {
+            "input_name": "cycle_adjustment",
+            "input_desc": "Number of days to adjust from the standard 280 days",
+            "input_type": "int",
+            "input_source": "$|inputs|.cycle_adjustment"
+          }
+        ],
+        "step_outputs": [
+          {
+            "output_name": "total_days",
+            "output_desc": "Total number of days to add to the LMP date",
+            "output_type": "int"
+          }
+        ],
+        "category": "FormulaCalculation",
+        "reason": "This is a straightforward arithmetic addition, which is best handled by the FormulaCalculation category.",
+        "detail": "total_days = 280 + cycle_adjustment"
+      },
+      {
+        "step_id": "3",
+        "step_name": "estimated_due_date_calculation",
+        "step_description": "Calculate the estimated due date by adding the total gestation days to the last menstrual period date.",
+        "step_inputs": [
+          {
+            "input_name": "lmp_date",
+            "input_desc": "Date of the last menstrual period in YYYY-MM-DD format (string)",
+            "input_type": "str",
+            "input_source": "$|inputs|.lmp_date"
+          },
+          {
+            "input_name": "total_days",
+            "input_desc": "Total number of days to add to the LMP date",
+            "input_type": "int",
+            "input_source": "$|2|.total_days"
+          }
+        ],
+        "step_outputs": [
+          {
+            "output_name": "estimated_due_date",
+            "output_desc": "Estimated due date in YYYY-MM-DD format",
+            "output_type": "str"
+          }
+        ],
+        "category": "TimeSeriesProcessing",
+        "reason": "This step requires temporal arithmetic—adding a number of days to a given date to produce a new date—which falls under TimeSeriesProcessing.",
+        "detail": "estimated_due_date = lmp_date + total_days days"
+      }
+    ],
+    "executableCode": "import datetime\n\ndef solve(lmp_date, cycle_length):\n    # Step 1: cycle_adjustment_calculation - Calculate the cycle length adjustment in days\n    cycle_adjustment = cycle_length - 28\n    yield {\n        \"step_name\": \"cycle_adjustment_calculation\",\n        \"step_description\": \"Calculate the cycle length adjustment in days by subtracting the standard 28-day cycle from the patient's actual cycle length.\",\n        \"step_result\": cycle_adjustment,\n        \"unit\": \"days\"\n    }\n    \n    # Step 2: total_gestation_days - Calculate total gestation days by adding cycle adjustment to 280\n    total_days = 280 + cycle_adjustment\n    yield {\n        \"step_name\": \"total_gestation_days\",\n        \"step_description\": \"Calculate the total gestation days by adding the cycle adjustment to the standard 280 days.\",\n        \"step_result\": total_days,\n        \"unit\": \"days\"\n    }\n    \n    # Step 3: estimated_due_date_calculation - Add total_days to lmp_date to get estimated due date\n    lmp_date_obj = datetime.datetime.strptime(lmp_date, \"%Y-%m-%d\")\n    estimated_due_date_obj = lmp_date_obj + datetime.timedelta(days=total_days)\n    estimated_due_date = estimated_due_date_obj.strftime(\"%Y-%m-%d\")\n    yield {\n        \"step_name\": \"estimated_due_date_calculation\",\n        \"step_description\": \"Calculate the estimated due date by adding the total gestation days to the last menstrual period date.\",\n        \"step_result\": estimated_due_date,\n        \"unit\": \"YYYY-MM-DD\"\n    }\n    \n    return estimated_due_date"
+  },
+  {
+    "id": "5f7e64fbe9df",
+    "code": "PUL-001",
+    "department": "Pulmonology",
+    "reference": "Kline JA, et al. Clinical criteria to prevent unnecessary diagnostic testing in emergency department patients with suspected pulmonary embolism. J Thromb Haemost. 2004;2(8):1247-1255.",
+    "name": "Pulmonary Embolism Rule-Out Criteria (PERC Rule)",
+    "description": "Calculate the total PERC Rule score for pulmonary embolism risk assessment by evaluating 8 clinical criteria and summing their points.",
+    "inputs": [
+      {
+        "input_name": "age",
+        "input_desc": "Patient's age in years (integer)",
+        "input_type": "int"
+      },
+      {
+        "input_name": "heart_rate",
+        "input_desc": "Patient's heart rate in beats per minute (integer)",
+        "input_type": "int"
+      },
+      {
+        "input_name": "o2_saturation",
+        "input_desc": "Patient's oxygen saturation on room air in percentage (float)",
+        "input_type": "float"
+      },
+      {
+        "input_name": "unilateral_leg_swelling",
+        "input_desc": "Presence of unilateral leg swelling (true/false)",
+        "input_type": "bool"
+      },
+      {
+        "input_name": "hemoptysis",
+        "input_desc": "Presence of hemoptysis (true/false)",
+        "input_type": "bool"
+      },
+      {
+        "input_name": "recent_surgery_trauma",
+        "input_desc": "Recent surgery or trauma within 4 weeks requiring general anesthesia (true/false)",
+        "input_type": "bool"
+      },
+      {
+        "input_name": "prior_pe_dvt",
+        "input_desc": "History of prior pulmonary embolism or deep vein thrombosis (true/false)",
+        "input_type": "bool"
+      },
+      {
+        "input_name": "hormone_use",
+        "input_desc": "Current hormone use including oral contraceptives, hormone replacement, or estrogenic hormones (true/false)",
+        "input_type": "bool"
+      }
+    ],
+    "output": {
+      "output_name": "total_perc_score",
+      "output_desc": "Total PERC Rule score (sum of all 8 criteria points, range 0-8)",
+      "output_type": "int",
+      "output_unit": null
+    },
+    "steps": [
+      {
+        "step_id": "1",
+        "step_name": "evaluate_age_criterion",
+        "step_description": "Evaluate if age is 50 years or older",
+        "step_inputs": [
+          {
+            "input_name": "age",
+            "input_desc": "Patient's age in years",
+            "input_type": "int",
+            "input_source": "$|inputs|.age"
+          }
+        ],
+        "step_outputs": [
+          {
+            "output_name": "age_point",
+            "output_desc": "Point for age criterion (0 or 1)",
+            "output_type": "int"
+          }
+        ],
+        "category": "ConditionEvaluation",
+        "reason": "This step evaluates a numerical threshold condition (age >= 50) to return a binary result.",
+        "detail": "If age >= 50, point = 1; otherwise, point = 0."
+      },
+      {
+        "step_id": "2",
+        "step_name": "evaluate_heart_rate_criterion",
+        "step_description": "Evaluate if heart rate is 100 bpm or higher",
+        "step_inputs": [
+          {
+            "input_name": "heart_rate",
+            "input_desc": "Patient's heart rate in bpm",
+            "input_type": "int",
+            "input_source": "$|inputs|.heart_rate"
+          }
+        ],
+        "step_outputs": [
+          {
+            "output_name": "hr_point",
+            "output_desc": "Point for heart rate criterion (0 or 1)",
+            "output_type": "int"
+          }
+        ],
+        "category": "ConditionEvaluation",
+        "reason": "This step evaluates a numerical threshold condition (heart_rate >= 100) to return a binary result.",
+        "detail": "If heart_rate >= 100, point = 1; otherwise, point = 0."
+      },
+      {
+        "step_id": "3",
+        "step_name": "evaluate_o2_saturation_criterion",
+        "step_description": "Evaluate if O2 saturation on room air is less than 95%",
+        "step_inputs": [
+          {
+            "input_name": "o2_saturation",
+            "input_desc": "Patient's oxygen saturation on room air (%)",
+            "input_type": "float",
+            "input_source": "$|inputs|.o2_saturation"
+          }
+        ],
+        "step_outputs": [
+          {
+            "output_name": "o2_point",
+            "output_desc": "Point for O2 saturation criterion (0 or 1)",
+            "output_type": "int"
+          }
+        ],
+        "category": "ConditionEvaluation",
+        "reason": "This step evaluates a numerical threshold condition (o2_saturation < 95) to return a binary result.",
+        "detail": "If o2_saturation < 95, point = 1; otherwise, point = 0."
+      },
+      {
+        "step_id": "4",
+        "step_name": "evaluate_clinical_signs_criteria",
+        "step_description": "Evaluate four binary clinical signs: unilateral leg swelling, hemoptysis, recent surgery/trauma, and prior PE/DVT",
+        "step_inputs": [
+          {
+            "input_name": "unilateral_leg_swelling",
+            "input_desc": "Presence of unilateral leg swelling (true/false)",
+            "input_type": "bool",
+            "input_source": "$|inputs|.unilateral_leg_swelling"
+          },
+          {
+            "input_name": "hemoptysis",
+            "input_desc": "Presence of hemoptysis (true/false)",
+            "input_type": "bool",
+            "input_source": "$|inputs|.hemoptysis"
+          },
+          {
+            "input_name": "recent_surgery_trauma",
+            "input_desc": "Recent surgery or trauma within 4 weeks requiring general anesthesia (true/false)",
+            "input_type": "bool",
+            "input_source": "$|inputs|.recent_surgery_trauma"
+          },
+          {
+            "input_name": "prior_pe_dvt",
+            "input_desc": "History of prior PE or DVT (true/false)",
+            "input_type": "bool",
+            "input_source": "$|inputs|.prior_pe_dvt"
+          }
+        ],
+        "step_outputs": [
+          {
+            "output_name": "unilateral_leg_swelling_point",
+            "output_desc": "Point for unilateral leg swelling (0 or 1)",
+            "output_type": "int"
+          },
+          {
+            "output_name": "hemoptysis_point",
+            "output_desc": "Point for hemoptysis (0 or 1)",
+            "output_type": "int"
+          },
+          {
+            "output_name": "recent_surgery_trauma_point",
+            "output_desc": "Point for recent surgery/trauma (0 or 1)",
+            "output_type": "int"
+          },
+          {
+            "output_name": "prior_pe_dvt_point",
+            "output_desc": "Point for prior PE/DVT (0 or 1)",
+            "output_type": "int"
+          }
+        ],
+        "category": "LogicalCombination",
+        "reason": "This step evaluates multiple binary true/false conditions and converts each to a 0 or 1 point using boolean-to-integer mapping.",
+        "detail": "For each criterion, if the condition is true (Yes), point = 1; if false (No), point = 0."
+      },
+      {
+        "step_id": "5",
+        "step_name": "evaluate_hormone_use_criterion",
+        "step_description": "Evaluate if patient uses oral contraceptives, hormone replacement, or estrogenic hormones",
+        "step_inputs": [
+          {
+            "input_name": "hormone_use",
+            "input_desc": "Current hormone use (true/false)",
+            "input_type": "bool",
+            "input_source": "$|inputs|.hormone_use"
+          }
+        ],
+        "step_outputs": [
+          {
+            "output_name": "hormone_point",
+            "output_desc": "Point for hormone use criterion (0 or 1)",
+            "output_type": "int"
+          }
+        ],
+        "category": "ConditionEvaluation",
+        "reason": "This step evaluates a binary clinical condition to return a 0 or 1 point.",
+        "detail": "If hormone_use is true, point = 1; otherwise, point = 0."
+      },
+      {
+        "step_id": "6",
+        "step_name": "calculate_total_perc_score",
+        "step_description": "Sum all criterion points to calculate the total PERC Rule score",
+        "step_inputs": [
+          {
+            "input_name": "age_point",
+            "input_desc": "Age criterion point (0 or 1)",
+            "input_type": "int",
+            "input_source": "$|1|.age_point"
+          },
+          {
+            "input_name": "hr_point",
+            "input_desc": "Heart rate criterion point (0 or 1)",
+            "input_type": "int",
+            "input_source": "$|2|.hr_point"
+          },
+          {
+            "input_name": "o2_point",
+            "input_desc": "O2 saturation criterion point (0 or 1)",
+            "input_type": "int",
+            "input_source": "$|3|.o2_point"
+          },
+          {
+            "input_name": "unilateral_leg_swelling_point",
+            "input_desc": "Unilateral leg swelling point (0 or 1)",
+            "input_type": "int",
+            "input_source": "$|4|.unilateral_leg_swelling_point"
+          },
+          {
+            "input_name": "hemoptysis_point",
+            "input_desc": "Hemoptysis point (0 or 1)",
+            "input_type": "int",
+            "input_source": "$|4|.hemoptysis_point"
+          },
+          {
+            "input_name": "recent_surgery_trauma_point",
+            "input_desc": "Recent surgery/trauma point (0 or 1)",
+            "input_type": "int",
+            "input_source": "$|4|.recent_surgery_trauma_point"
+          },
+          {
+            "input_name": "prior_pe_dvt_point",
+            "input_desc": "Prior PE/DVT point (0 or 1)",
+            "input_type": "int",
+            "input_source": "$|4|.prior_pe_dvt_point"
+          },
+          {
+            "input_name": "hormone_point",
+            "input_desc": "Hormone use point (0 or 1)",
+            "input_type": "int",
+            "input_source": "$|5|.hormone_point"
+          }
+        ],
+        "step_outputs": [
+          {
+            "output_name": "total_perc_score",
+            "output_desc": "Total PERC Rule score (sum of all 8 criteria points)",
+            "output_type": "int"
+          }
+        ],
+        "category": "FormulaCalculation",
+        "reason": "This step performs a simple arithmetic summation of all criteria points using a mathematical formula.",
+        "detail": "Sum all 8 criteria points: total_perc_score = age_point + hr_point + o2_point + unilateral_leg_swelling_point + hemoptysis_point + recent_surgery_trauma_point + prior_pe_dvt_point + hormone_point"
+      }
+    ],
+    "executableCode": "def solve(age, heart_rate, o2_saturation, unilateral_leg_swelling, hemoptysis, recent_surgery_trauma, prior_pe_dvt, hormone_use):\n    # Step 1: Evaluate age criterion (age >= 50)\n    age_point = 1 if age >= 50 else 0\n    yield {\n        \"step_name\": \"evaluate_age_criterion\",\n        \"step_description\": \"Evaluate if age is 50 years or older\",\n        \"step_result\": age_point,\n        \"unit\": \"score\"\n    }\n\n    # Step 2: Evaluate heart rate criterion (heart_rate >= 100)\n    hr_point = 1 if heart_rate >= 100 else 0\n    yield {\n        \"step_name\": \"evaluate_heart_rate_criterion\",\n        \"step_description\": \"Evaluate if heart rate is 100 bpm or higher\",\n        \"step_result\": hr_point,\n        \"unit\": \"score\"\n    }\n\n    # Step 3: Evaluate O2 saturation criterion (o2_saturation < 95)\n    o2_point = 1 if o2_saturation < 95 else 0\n    yield {\n        \"step_name\": \"evaluate_o2_saturation_criterion\",\n        \"step_description\": \"Evaluate if O2 saturation on room air is less than 95%\",\n        \"step_result\": o2_point,\n        \"unit\": \"score\"\n    }\n\n    # Step 4: Evaluate four binary clinical signs\n    unilateral_leg_swelling_point = 1 if unilateral_leg_swelling else 0\n    hemoptysis_point = 1 if hemoptysis else 0\n    recent_surgery_trauma_point = 1 if recent_surgery_trauma else 0\n    prior_pe_dvt_point = 1 if prior_pe_dvt else 0\n    yield {\n        \"step_name\": \"evaluate_clinical_signs_criteria\",\n        \"step_description\": \"Evaluate four binary clinical signs: unilateral leg swelling, hemoptysis, recent surgery/trauma, and prior PE/DVT\",\n        \"step_result\": {\n            \"unilateral_leg_swelling_point\": unilateral_leg_swelling_point,\n            \"hemoptysis_point\": hemoptysis_point,\n            \"recent_surgery_trauma_point\": recent_surgery_trauma_point,\n            \"prior_pe_dvt_point\": prior_pe_dvt_point\n        },\n        \"unit\": \"score\"\n    }\n\n    # Step 5: Evaluate hormone use criterion\n    hormone_point = 1 if hormone_use else 0\n    yield {\n        \"step_name\": \"evaluate_hormone_use_criterion\",\n        \"step_description\": \"Evaluate if patient uses oral contraceptives, hormone replacement, or estrogenic hormones\",\n        \"step_result\": hormone_point,\n        \"unit\": \"score\"\n    }\n\n    # Step 6: Calculate total PERC score\n    total_perc_score = age_point + hr_point + o2_point + unilateral_leg_swelling_point + hemoptysis_point + recent_surgery_trauma_point + prior_pe_dvt_point + hormone_point\n    yield {\n        \"step_name\": \"calculate_total_perc_score\",\n        \"step_description\": \"Sum all criterion points to calculate the total PERC Rule score\",\n        \"step_result\": total_perc_score,\n        \"unit\": \"score\"\n    }\n\n    return total_perc_score"
+  },
+  {
+    "id": "ffb77e23bf55",
+    "code": "PUL-002",
+    "department": "Pulmonology",
+    "reference": "Kline JA, et al. J Thromb Haemost. 2004; Clinical prediction rule to rule out pulmonary embolism.",
+    "name": "Pulmonary Embolism Rule-out Criteria (PERC Rule)",
+    "description": "Evaluate the PERC rule criteria based on patient data and compute the total PERC score.",
+    "inputs": [
+      {
+        "input_name": "age_ge_50",
+        "input_desc": "Is the patient's age ≥50 years? Allowed values: true, false",
+        "input_type": "bool"
+      },
+      {
+        "input_name": "hr_ge_100",
+        "input_desc": "Is the heart rate ≥100 bpm? Allowed values: true, false",
+        "input_type": "bool"
+      },
+      {
+        "input_name": "o2_sat_lt_95",
+        "input_desc": "Is O2 saturation on room air <95%? Allowed values: true, false",
+        "input_type": "bool"
+      },
+      {
+        "input_name": "unilateral_leg_swelling",
+        "input_desc": "Is unilateral leg swelling present? Allowed values: true, false",
+        "input_type": "bool"
+      },
+      {
+        "input_name": "hemoptysis",
+        "input_desc": "Is hemoptysis present? Allowed values: true, false",
+        "input_type": "bool"
+      },
+      {
+        "input_name": "recent_surgery_trauma",
+        "input_desc": "Recent surgery or trauma (within 4 weeks, requiring general anesthesia)? Allowed values: true, false",
+        "input_type": "bool"
+      },
+      {
+        "input_name": "prior_pe_dvt",
+        "input_desc": "Prior pulmonary embolism or deep vein thrombosis? Allowed values: true, false",
+        "input_type": "bool"
+      },
+      {
+        "input_name": "hormone_use",
+        "input_desc": "Hormone use (oral contraceptives, hormone replacement, or estrogenic hormone use in males or females)? Allowed values: true, false",
+        "input_type": "bool"
+      }
+    ],
+    "output": {
+      "output_name": "total_score",
+      "output_desc": "Total PERC score, ranging from 0 to 8",
+      "output_type": "integer",
+      "output_unit": null
+    },
+    "steps": [
+      {
+        "step_id": "1",
+        "step_name": "perc_criterion_evaluation",
+        "step_description": "Evaluate each of the 8 PERC criteria against patient data and assign 0 or 1 point per criterion.",
+        "step_inputs": [
+          {
+            "input_name": "age_ge_50",
+            "input_desc": "Is the patient's age ≥50 years? (true/false)",
+            "input_type": "bool",
+            "input_source": "$|inputs|.age_ge_50"
+          },
+          {
+            "input_name": "hr_ge_100",
+            "input_desc": "Is the heart rate ≥100 bpm? (true/false)",
+            "input_type": "bool",
+            "input_source": "$|inputs|.hr_ge_100"
+          },
+          {
+            "input_name": "o2_sat_lt_95",
+            "input_desc": "Is O2 saturation on room air <95%? (true/false)",
+            "input_type": "bool",
+            "input_source": "$|inputs|.o2_sat_lt_95"
+          },
+          {
+            "input_name": "unilateral_leg_swelling",
+            "input_desc": "Is unilateral leg swelling present? (true/false)",
+            "input_type": "bool",
+            "input_source": "$|inputs|.unilateral_leg_swelling"
+          },
+          {
+            "input_name": "hemoptysis",
+            "input_desc": "Is hemoptysis present? (true/false)",
+            "input_type": "bool",
+            "input_source": "$|inputs|.hemoptysis"
+          },
+          {
+            "input_name": "recent_surgery_trauma",
+            "input_desc": "Recent surgery or trauma (within 4 weeks, requiring general anesthesia)? (true/false)",
+            "input_type": "bool",
+            "input_source": "$|inputs|.recent_surgery_trauma"
+          },
+          {
+            "input_name": "prior_pe_dvt",
+            "input_desc": "Prior pulmonary embolism or deep vein thrombosis? (true/false)",
+            "input_type": "bool",
+            "input_source": "$|inputs|.prior_pe_dvt"
+          },
+          {
+            "input_name": "hormone_use",
+            "input_desc": "Hormone use (oral contraceptives, replacement, or estrogenic)? (true/false)",
+            "input_type": "bool",
+            "input_source": "$|inputs|.hormone_use"
+          }
+        ],
+        "step_outputs": [
+          {
+            "output_name": "criteria_points",
+            "output_desc": "An array of 8 integers (0 or 1) representing points for each criterion",
+            "output_type": "array of integer"
+          }
+        ],
+        "category": "DiscreteValueMapping",
+        "reason": "Each boolean input maps directly to a discrete output value (true→1, false→0) using a fixed mapping rule across 8 parallel items. This is a straightforward key-value mapping rather than a formula or threshold evaluation.",
+        "detail": "For each of the 8 PERC criteria, if the condition is true, assign 1 point; if false, assign 0 points. Criteria: 1. Age ≥50, 2. HR ≥100, 3. O2 sat <95%, 4. Unilateral leg swelling, 5. Hemoptysis, 6. Recent surgery/trauma, 7. Prior PE/DVT, 8. Hormone use."
+      },
+      {
+        "step_id": "2",
+        "step_name": "total_perc_score_summation",
+        "step_description": "Sum the 8 individual criterion points to compute the total PERC score.",
+        "step_inputs": [
+          {
+            "input_name": "criteria_points",
+            "input_desc": "Array of 8 integers (0 or 1) from the criterion evaluation step",
+            "input_type": "array of integer",
+            "input_source": "$|step1|.criteria_points"
+          }
+        ],
+        "step_outputs": [
+          {
+            "output_name": "total_score",
+            "output_desc": "Total PERC score (sum of all criterion points), ranging from 0 to 8",
+            "output_type": "integer"
+          }
+        ],
+        "category": "StatisticalAggregation",
+        "reason": "The step requires summing an array of 8 numerical values to produce a single aggregate result, which is a simple statistical aggregation operation.",
+        "detail": "Calculate the sum of the 8 individual criterion points: total_score = sum(criteria_points)."
+      }
+    ],
+    "executableCode": "def solve(age_ge_50, hr_ge_100, o2_sat_lt_95, unilateral_leg_swelling, hemoptysis, recent_surgery_trauma, prior_pe_dvt, hormone_use):\n    # Step 1: perc_criterion_evaluation\n    # Evaluate each of the 8 PERC criteria against patient data and assign 0 or 1 point per criterion.\n    # For each boolean input: true -> 1, false -> 0\n    criteria_points = [\n        1 if age_ge_50 else 0,\n        1 if hr_ge_100 else 0,\n        1 if o2_sat_lt_95 else 0,\n        1 if unilateral_leg_swelling else 0,\n        1 if hemoptysis else 0,\n        1 if recent_surgery_trauma else 0,\n        1 if prior_pe_dvt else 0,\n        1 if hormone_use else 0\n    ]\n    yield {\n        \"step_name\": \"perc_criterion_evaluation\",\n        \"step_description\": \"Evaluate each of the 8 PERC criteria against patient data and assign 0 or 1 point per criterion\",\n        \"step_result\": criteria_points,\n        \"unit\": \"score\"\n    }\n\n    # Step 2: total_perc_score_summation\n    # Sum the 8 individual criterion points to compute the total PERC score.\n    total_score = sum(criteria_points)\n    yield {\n        \"step_name\": \"total_perc_score_summation\",\n        \"step_description\": \"Sum the 8 individual criterion points to compute the total PERC score\",\n        \"step_result\": total_score,\n        \"unit\": \"score\"\n    }\n\n    return total_score"
   }
 ]

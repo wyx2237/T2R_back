@@ -2,16 +2,46 @@
   "metrics": {
     "department": [
       {
+        "name": "Cardiology",
+        "code_name": "CAR",
+        "nums": 4
+      },
+      {
+        "name": "Endocrinology",
+        "code_name": "END",
+        "nums": 1
+      },
+      {
+        "name": "Gastroenterology",
+        "code_name": "GAS",
+        "nums": 3
+      },
+      {
         "name": "General",
         "code_name": "GEN",
+        "nums": 5
+      },
+      {
+        "name": "InfectiousDisease",
+        "code_name": "INF",
         "nums": 1
       },
       {
         "name": "Nephrology",
         "code_name": "NEP",
+        "nums": 4
+      },
+      {
+        "name": "Obstetrics",
+        "code_name": "OBS",
         "nums": 1
+      },
+      {
+        "name": "Pulmonology",
+        "code_name": "PUL",
+        "nums": 2
       }
     ],
-    "total_nums": 2
+    "total_nums": 21
   }
 }
