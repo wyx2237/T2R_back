@@ -46,6 +46,7 @@ class StepTrace(BaseModel):
     category: str
     step_name: str
     step_description: str
+    step_detail: str # 该步骤具体实施的细节，参数、规则、公式等
     inputs: list[StepTraceInput]
     outputs: list[StepTraceOutput]
     status: ComputeStepStatus

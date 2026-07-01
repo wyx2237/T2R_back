@@ -1,6 +1,7 @@
 """计算会话管理 —— 内存字典存储，管理上传 → 选指标 → 执行 三阶段"""
 
-from datetime import datetime, timezone
+import asyncio
+from datetime import datetime, timezone, timedelta
 import json
 from uuid import uuid4
 
@@ -12,9 +13,43 @@ from services import metric_store
 
 _sessions: dict[str, ComputeSession] = {}
 
+# 后台清理配置
+_CLEANUP_INTERVAL_SECONDS = 600  # 每 10 分钟清理一次
+_SESSION_TTL = timedelta(minutes=30)  # 会话最多保留 30 分钟
+
+_cleanup_task: asyncio.Task | None = None
+
+
+async def _cleanup_loop():
+    """后台定时清理过期会话，防止内存泄漏。"""
+    while True:
+        await asyncio.sleep(_CLEANUP_INTERVAL_SECONDS)
+        now = datetime.now(timezone.utc)
+        expired = [
+            sid
+            for sid, s in list(_sessions.items())
+            if now - datetime.fromisoformat(s.createdAt) > _SESSION_TTL
+        ]
+        for sid in expired:
+            del _sessions[sid]
+        if expired:
+            print(f"[Session Cleanup] 已清理 {len(expired)} 个过期会话")
+
+
+def _start_cleanup():
+    """惰性启动后台清理任务（确保在事件循环运行时调用）。"""
+    global _cleanup_task
+    if _cleanup_task is not None:
+        return
+    try:
+        _cleanup_task = asyncio.create_task(_cleanup_loop())
+    except RuntimeError:
+        pass  # 事件循环尚未运行，等下次 create_session 时再试
+
 
 async def create_session(raw_text: str, all_metrics: list[Metric]) -> ComputeSession:
     """上传文件后创建新会话，返回带 sessionId 的会话对象"""
+    _start_cleanup()  # 惰性启动后台清理任务
     # 只保留 metric 元信息字段
     available_metrics = [
         {   

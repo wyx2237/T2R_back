@@ -424,7 +424,6 @@ EXTRACT_PARAMETERS_STRUCTURED_PROMPT = """
   - 2: 原文模糊提及，存在一定不确定性
   - 1: 原文仅有一丝线索，高度不确定
   - 0: 未找到，完全无法抽取
-- **position** (object): 参数值在【病人信息】原文中的起止位置，格式为 { "start": int, "end": int }（字符索引，从0开始计数）。如果未找到（rawValue 为空），start 和 end 均设为 -1
 
 ### 输出格式模板
 <json>
@@ -434,16 +433,14 @@ EXTRACT_PARAMETERS_STRUCTURED_PROMPT = """
         "rawValue": "原文中描述该参数的原始文本片段",
         "normalizedValue": "标准化值或数字",
         "unit": "单位或空字符串",
-        "confidence": 5,
-        "position": { "start": 12, "end": 20 }
+        "confidence": 5
     },
     {
         "name": "参数名2",
         "rawValue": "原文中的原始文本片段",
         "normalizedValue": 70,
         "unit": "kg",
-        "confidence": 4,
-        "position": { "start": 25, "end": 35 }
+        "confidence": 4
     }
 ]
 </json>

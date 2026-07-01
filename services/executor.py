@@ -19,7 +19,7 @@ async def execute(metric: Metric, raw_text: str) -> MetricComputeResult:
     # 检查参数抽取结果
     check_result = check_extract_params(extract_param_list)
     # 格式转换
-    extracted_params = build_extract_params(extract_param_list)
+    extracted_params = build_extract_params(extract_param_list, raw_text)
     input_params = build_input_params(extract_param_list)
     input_units = build_input_units(extract_param_list)
 
@@ -143,15 +143,26 @@ def build_extract_params(extract_param_list: List[Dict], raw_text: str = "") -> 
     """
     extracted_params: List[ExtractedParam] = []
     for param in extract_param_list:
+        position = _get_param_position(param.get("rawValue", ""), raw_text)
         extracted_params.append(ExtractedParam(
             name=param.get("name", ""),
             rawValue=param.get("rawValue", ""),
             normalizedValue=param.get("normalizedValue") if param.get("normalizedValue") is not None else "",
             unit=param.get("unit", ""),
             confidence=param.get("confidence", 0),
-            position=param.get("position", {"start": -1, "end": -1}),
+            position=position,
         ))
     return extracted_params
+
+def _get_param_position(raw_value: str, raw_text: str) -> Dict[str, int]:
+    """获取 rawValue 在 raw_text 中首次出现的位置。"""
+    if not raw_text or not raw_value:
+        return {"start": -1, "end": -1}
+    start = raw_text.find(raw_value)
+    if start == -1:
+        return {"start": -1, "end": -1}
+    return {"start": start, "end": start + len(raw_value)}
+
 
 def build_step_traces(cal_result: Dict[str, Any], workflow_steps: List[WorkflowStep], input_params: Dict, input_units: Dict[str, str] = None) -> List[StepTrace]:
     """
@@ -189,8 +200,8 @@ def build_step_traces(cal_result: Dict[str, Any], workflow_steps: List[WorkflowS
                 match = re.search(r"\$\|(\d+)\|\.(\w+)", inp.input_source)
                 source_order = match.group(1)
                 source_name = match.group(2)
-                input_value = context["steps"][source_order].get(source_name)
-                input_unit = ""
+                input_value = context["steps"][source_order].get(source_name, {}).get("value")
+                input_unit = context["steps"][source_order].get(source_name, {}).get("unit")
 
             input_list.append(StepTraceInput(
                 input_name=inp.input_name,
@@ -210,7 +221,7 @@ def build_step_traces(cal_result: Dict[str, Any], workflow_steps: List[WorkflowS
                     output_value=step_result.get(so.output_name),
                     output_unit=unit,
                 ))
-            context["steps"][str(order)] = step_result
+            context["steps"][str(order)] = {"value": step_result, "unit": unit}
         else:
             if ws.step_outputs:
                 output_list.append(StepTraceOutput(
@@ -218,15 +229,16 @@ def build_step_traces(cal_result: Dict[str, Any], workflow_steps: List[WorkflowS
                     output_value=step_result,
                     output_unit=unit,
                 ))
-                context["steps"][str(order)] = {ws.step_outputs[0].output_name: step_result}
+                context["steps"][str(order)] = {ws.step_outputs[0].output_name: {"value": step_result, "unit":unit}}
             else:
-                context["steps"][str(order)] = {"result": step_result}
+                context["steps"][str(order)] = {}
 
         trace = StepTrace(
             order=order,
             category=ws.category,
             step_name=ws.step_name,
             step_description=ws.step_description,
+            step_detail=ws.detail,
             inputs=input_list,
             outputs=output_list,
             status="success",       # 默认成功
