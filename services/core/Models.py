@@ -5,10 +5,12 @@ from autogen_core.models import UserMessage
 import autogen_ext
 import asyncio
 
+from utils.config import DEEPSEEK_API_KEY, QWEN_API_KEY
+
 # print("Version of autogen_ext: ", autogen_ext.__version__)
 deepseek_v3_model_client = OpenAIChatCompletionClient(
     model="deepseek-chat",
-    api_key="sk-0b013592895948a78f28b12280160bb8",
+    api_key=DEEPSEEK_API_KEY,
     base_url="https://api.deepseek.com",
     max_retries=3,
     model_info={
@@ -22,7 +24,7 @@ deepseek_v3_model_client = OpenAIChatCompletionClient(
 
 qwen3_8b_model_client = OpenAIChatCompletionClient(
     model="qwen3-8b",
-    api_key="sk-16fa569a0dec48aeabd453cf72aa0394",
+    api_key=QWEN_API_KEY,
     base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
     max_retries=3,
     model_info={
@@ -35,24 +37,24 @@ qwen3_8b_model_client = OpenAIChatCompletionClient(
     extra_body={"enable_thinking": False} # 试了半天终于试出来要配置这个项才能关闭思考模式
 )
 
-qwen3_8b_wyx_model_client = OpenAIChatCompletionClient(
-    model="qwen3-8b-vllm",
-    api_key="sk-16fa569a0dec48aeabd453cf72aa0394",
-    base_url="http://172.20.137.188:8101/v1",
-    max_retries=3,
-    model_info={
-        "vision": False,
-        "function_calling": True,
-        "json_output": True,
-        "family": "qwen",
-        "structured_output": True,
-    },
-    extra_body={"enable_thinking": False} # 试了半天终于试出来要配置这个项才能关闭思考模式
-)
+# qwen3_8b_wyx_model_client = OpenAIChatCompletionClient(
+#     model="qwen3-8b-vllm",
+#     api_key="",
+#     base_url="http://172.20.137.188:8101/v1",
+#     max_retries=3,
+#     model_info={
+#         "vision": False,
+#         "function_calling": True,
+#         "json_output": True,
+#         "family": "qwen",
+#         "structured_output": True,
+#     },
+#     extra_body={"enable_thinking": False} # 试了半天终于试出来要配置这个项才能关闭思考模式
+# )
 
 deepseek_v4_flash_client = OpenAIChatCompletionClient(
     model="deepseek-v4-flash",
-    api_key="sk-0b013592895948a78f28b12280160bb8",
+    api_key=DEEPSEEK_API_KEY,
     base_url="https://api.deepseek.com",
     max_retries=3,
     model_info={
@@ -68,7 +70,7 @@ deepseek_v4_flash_client = OpenAIChatCompletionClient(
 
 deepseek_v4_pro_client = OpenAIChatCompletionClient(
     model="deepseek-v4-pro",
-    api_key="sk-0b013592895948a78f28b12280160bb8",
+    api_key=DEEPSEEK_API_KEY,
     base_url="https://api.deepseek.com",
     max_retries=3,
     model_info={

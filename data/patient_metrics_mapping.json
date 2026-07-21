@@ -1,0 +1,52 @@
+{
+  "patient_1.txt": [
+    {"code": "GEN-003", "name": "Body Mass Index (BMI)"},
+    {"code": "GEN-002", "name": "Mean Arterial Pressure (MAP)"},
+    {"code": "NEP-001", "name": "Creatinine Clearance (Cockcroft-Gault Equation)"},
+    {"code": "NEP-002", "name": "Glomerular Filtration Rate (GFR) — 2021 CKD-EPI"},
+    {"code": "CAR-001", "name": "CHA2DS2-VASc Score for Atrial Fibrillation Stroke Risk"},
+    {"code": "CAR-002", "name": "Corrected QT Interval (QTc) — Bazett Formula"}
+  ],
+  "patient_2.txt": [
+    {"code": "GEN-003", "name": "Body Mass Index (BMI)"},
+    {"code": "GAS-001", "name": "Child-Pugh Score (CPS)"},
+    {"code": "GAS-002", "name": "Model for End-Stage Liver Disease Sodium (MELD-Na)"},
+    {"code": "GAS-003", "name": "Glasgow-Blatchford Bleeding Score (GBS)"},
+    {"code": "NEP-004", "name": "Serum Osmolality"},
+    {"code": "CAR-004", "name": "HAS-BLED Score"}
+  ],
+  "patient_3.txt": [
+    {"code": "INF-001", "name": "Systemic Inflammatory Response Syndrome (SIRS) Criteria"},
+    {"code": "PUL-001", "name": "Pulmonary Embolism Rule-Out Criteria (PERC Rule)"},
+    {"code": "CAR-003", "name": "Wells' Criteria for Deep Vein Thrombosis (Wells DVT Score)"},
+    {"code": "GEN-005", "name": "Maintenance Fluid Rate (4-2-1 Rule)"},
+    {"code": "GEN-006", "name": "FeverPAIN Score"},
+    {"code": "GEN-002", "name": "Mean Arterial Pressure (MAP)"},
+    {"code": "OBS-001", "name": "Estimated Due Date (EDD) by Naegele's Rule"},
+    {"code": "GEN-004", "name": "Ideal Body Weight (IBW) — Devine Formula"}
+  ],
+  "patient_4.txt": [
+    {"code": "GEN-003", "name": "Body Mass Index (BMI)"},
+    {"code": "GEN-002", "name": "Mean Arterial Pressure (MAP)"},
+    {"code": "GEN-004", "name": "Ideal Body Weight (IBW) — Devine Formula"},
+    {"code": "GEN-005", "name": "Maintenance Fluid Rate (4-2-1 Rule)"},
+    {"code": "NEP-003", "name": "Estimated Glomerular Filtration Rate (eGFR) by MDRD"},
+    {"code": "END-001", "name": "Corticosteroid Conversion Calculator"}
+  ],
+  "patient_5.txt": [
+    {"code": "GEN-003", "name": "Body Mass Index (BMI)"},
+    {"code": "CAR-002", "name": "Corrected QT Interval (QTc) — Bazett Formula"},
+    {"code": "CAR-001", "name": "CHA2DS2-VASc Score for Atrial Fibrillation Stroke Risk"},
+    {"code": "CAR-004", "name": "HAS-BLED Score"},
+    {"code": "CAR-003", "name": "Wells' Criteria for Deep Vein Thrombosis (Wells DVT Score)"},
+    {"code": "PUL-002", "name": "Pulmonary Embolism Rule-out Criteria (PERC Rule) — Alternative"}
+  ],
+  "patient_6.txt": [
+    {"code": "INF-001", "name": "Systemic Inflammatory Response Syndrome (SIRS) Criteria"},
+    {"code": "NEP-004", "name": "Serum Osmolality"},
+    {"code": "NEP-001", "name": "Creatinine Clearance (Cockcroft-Gault Equation)"},
+    {"code": "NEP-002", "name": "Glomerular Filtration Rate (GFR) — 2021 CKD-EPI"},
+    {"code": "GAS-003", "name": "Glasgow-Blatchford Bleeding Score (GBS)"},
+    {"code": "GAS-001", "name": "Child-Pugh Score (CPS)"}
+  ]
+}
