@@ -93,6 +93,10 @@ async def create_session(
         createdAt=datetime.now(timezone.utc).isoformat(),
     )
     _sessions[session.sessionId] = session
+
+    # 随机等待 2~4 秒
+    await asyncio.sleep(random.uniform(2, 4))
+
     return {
         "session": session.model_dump(),
         "recommand_metrics": recommand_metrics,

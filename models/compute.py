@@ -60,7 +60,7 @@ class MetricComputeResult(BaseModel):
     metricName: str
     metricCode: str
     finalValue: float
-    finalUnit: str
+    finalUnit: str | None = None
     status: ResultStatus | None = None
     statusLabel: str | None = None
     referenceRange: dict | None = None  # { min, max }
