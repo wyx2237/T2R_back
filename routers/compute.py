@@ -15,7 +15,7 @@ async def upload_case_file(file: UploadFile = File(...)) -> ResponseModel:
     """
     上传 .txt 病例文件，创建计算会话，返回可计算指标列表。
     对应 API.md §3.1
-    
+
     Returns
         result:
             session: ComputeSession
@@ -23,9 +23,17 @@ async def upload_case_file(file: UploadFile = File(...)) -> ResponseModel:
             standard_metrics: list
     """
     raw_text = (await file.read()).decode("utf-8")
+    filename = file.filename
+
+    # 检查文件名是否在 patient_metrics_mapping.json 中有预定义映射
+    mapping = session_manager.load_patient_metrics_mapping()
+    predefined_codes: list[str] | None = None
+    if filename and filename in mapping:
+        predefined_codes = [item["code"] for item in mapping[filename]]
+        print(f"[Mapping] 命中预定义映射: {filename} -> {len(predefined_codes)} 个指标")
+
     metrics = metric_store.list_metrics(page_size=1000).items
-    result = await session_manager.create_session(raw_text, metrics)
-    # print(json.dumps(result, ensure_ascii=False, indent=4))
+    result = await session_manager.create_session(raw_text, metrics, predefined_codes)
     return ResponseModel(message="创建成功", data=result)
 
 
